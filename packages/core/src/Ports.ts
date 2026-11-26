@@ -50,8 +50,9 @@ export interface PortTypes {
 /**
  * The registry: every port's description, by name.
  *
- * Two ports claiming one span, or a port whose span is a pattern and not one
- * literal, is a compile error here (`DistinctSpanNames`, `PortDerivation.ts`).
+ * Two ports whose spans overlap, or a port whose span is not one literal (a
+ * pattern or a union), is a compile error here (`DistinctSpanNames`,
+ * `PortDerivation.ts`).
  */
 export const PORTS: PortTypes = {
   AttributeResolver: attributeResolverPort,

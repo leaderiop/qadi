@@ -59,7 +59,8 @@ error named, and a hand list could be widened by a side effect.
    (`PortTypes[N]["span"]`), and `interface PortSpans` is gone. `DistinctSpanNames<R>`, exported from the package-private
    `PortDerivation.ts` and not from the barrel, is `unknown` when every entry of a registry names one literal and no two
    share it, and `never` otherwise. The registry applies it as `{ … } satisfies DistinctSpanNames<PortTypes>`; the
-   declaration stays `PORTS: PortTypes`. It refuses sharing and patterns, and it does not refuse a port moving to a new
+   declaration stays `PORTS: PortTypes`. It refuses sharing (two spans that overlap, two unions sharing a member
+   included), patterns and unions of names, and it does not refuse a port moving to a new
    literal of its own: the span pins and the characterisation's facts golden catch that. The property the old cross-check
    stood for, one span per port and no other port's, is the check's: `attributeResolverPort` claiming `"qadi.acted"` leaves
    two ports with one span. It also closes a hole the interface had, because two `PortSpans` rows with one literal compiled.
@@ -283,7 +284,8 @@ What `pnpm check` runs, by command:
 - `pnpm test:tstyche`, `packages/core/test/PortFacts.tst.ts` and `packages/core/test/PortName.tst.ts`: `PortName`,
   `PORT_NAMES`, `PortSpanName`, `PortSpanOf`, `PortFixtureData` and `PORT_FIXTURES` are their spelled types; `DistinctSpanNames`
   is `unknown` over a record of six distinct literals and `never` over a duplicate, a widened span and a port claiming
-  another's; a description without `span` or `fixture` is not assignable to its registry slot. The pins are positive and
+  another's, and (`packages/core/test/PortFacts.review.tst.ts`) `never` over a union span, a union holding a pattern and
+  two unions sharing a member; a description without `span` or `fixture` is not assignable to its registry slot. The pins are positive and
   `not.toBeAssignableTo` only, so `NOT_CALLABLE_PIN_BUDGET` does not move.
 - `pnpm coverage`, which runs the whole `vitest` suite: `packages/core/test/PortFacts.characterisation.test.ts` (each port's
   facts, the registry's order, the preregistered words, the wire and served bytes, and the route table of every scoped

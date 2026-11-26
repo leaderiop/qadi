@@ -170,8 +170,8 @@ export type LeafRequests<P extends ReadonlyArray<unknown>> = {
  *   the one literal its module states (`typeof` a module-private constant).
  *   The registry reads it back (`PortSpanOf`, `Ports.ts`), so the union of the
  *   five is derived from the descriptions and no table beside them restates it,
- *   and `DistinctSpanNames` (`PortDerivation.ts`) refuses two ports that share
- *   one. Defaulted to the pattern every span name matches, which is all generic
+ *   and `DistinctSpanNames` (`PortDerivation.ts`) refuses two registry entries
+ *   whose spans overlap and a span that is not one literal. Defaulted to the pattern every span name matches, which is all generic
  *   code needs.
  * - `FixtureData` — the plain data {@link PortDescription.fixture} builds the
  *   port's layer from: serializable, never a layer. Defaulted to `never`, so

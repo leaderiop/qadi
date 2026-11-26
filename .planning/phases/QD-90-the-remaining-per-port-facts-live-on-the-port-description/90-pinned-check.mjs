@@ -18,6 +18,7 @@
 //               - the characterisation, outside its import region;
 //               - the type pins, outside their import region, with lines appended after the born text allowed;
 //               - the bench file, whole;
+//               - the review round's type pins (`PortFacts.review.tst.ts`), whole, added by one commit of that round;
 //               - the mutation test file, whole, only when it exists: one commit since the base adds it, under the one subject
 //                 that may, and holds exactly it.
 //             An import region is a constant range of the born text, checked to be the span of that text's top-level import
@@ -99,6 +100,7 @@ const BORN = [
   { file: `${CORE_TEST}/PortFacts.characterisation.test.ts`, subject: "test(90-03): pin the port facts on the base", adds: true, imports: { first: 24, last: 61 }, appended: false },
   { file: `${CORE_TEST}/PortFacts.tst.ts`, subject: "test(90-04): pin the moved port types on the base", adds: true, imports: { first: 11, last: 20 }, appended: true },
   { file: "packages/core/bench/Evaluate.bench.ts", subject: "test(90-06): add the scoped-heavy bench workloads", adds: false },
+  { file: `${CORE_TEST}/PortFacts.review.tst.ts`, subject: "fix(90-review): refuse a union span name at the registry", adds: true },
 ];
 
 /** The one born file that may exist later, whole, added by one commit under one subject. */
@@ -726,7 +728,8 @@ const selfTest = () => {
   check("the declared regions are the ones the phase fixes", DECLARED.map((d) => d.regions.map((r) => `${r.first}-${r.last}`).join(",")).join(" ") === "9-43,133-160 1-8,10-12,32-39 121-120 44-48 8-19");
   check("the declared files are five, each once, two of them source", new Set(DECLARED.map((d) => d.file)).size === 5 && DECLARED.filter((d) => d.source === true).length === 2);
   check("the only insertion is the fixed fixture line", DECLARED.flatMap((d) => d.regions).filter((r) => r.lines !== undefined).length === 1 && DECLARED[2].regions[0].lines.join() === "  fixture: () => named(undefined, 0),");
-  check("the born files are three, with the import regions the plans recorded", BORN.length === 3 && BORN[0].imports.first === 24 && BORN[0].imports.last === 61 && BORN[1].imports.first === 11 && BORN[1].imports.last === 20 && BORN[2].imports === undefined);
+  check("the born files are the phase's three, with the import regions the plans recorded, then the review round's, whole", BORN.length === 4 && BORN[0].imports.first === 24 && BORN[0].imports.last === 61 && BORN[1].imports.first === 11 && BORN[1].imports.last === 20 && BORN.slice(2).every((b) => b.imports === undefined));
+  check("each review-round born file is added whole by one commit of that round", BORN.slice(3).every((b) => b.adds === true && b.subject.startsWith("fix(90-review): ") && b.appended === undefined));
   check("only the type pins may be appended to", BORN.filter((b) => b.appended === true).map((b) => b.file).join() === `${CORE_TEST}/PortFacts.tst.ts`);
   check("the held directories are the five", PREFIXES.length === 5 && HELD_SOURCE.join() === `${CORE_SRC}/PortServing.ts`);
   eq("the output line", summaryLine(408, 3, 3, 1, 5), "90-pinned-check.mjs: pinned: 408 files hold their base text, 3 of 3 born files held, 1 of 5 declared edits applied");

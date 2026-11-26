@@ -1332,3 +1332,33 @@ Each block below is one run of a phase check or a held mutation mode on a scratc
 - run: script 90-check.mjs sixth-port close
 - exit: 1
 - failing text: a group the record lacks: packages/core/src/PortAccess.ts TS2345
+
+## 90 review fixes
+
+The review round's new test rows and compile-time refusals, each seen failing in a scratch clone before the fix it pins (the
+clone holds the commit before the fix, with the new row written in) or, for a control row, under a planted edit that the
+row must catch. Each block below is written by `90-check.mjs variant`.
+
+## span-union-refused
+- scratch: rv-span at bb4ef25de0
+- edit: PortFacts.review.tst.ts written in on the commit before the fix, whose SpanOffenders has no union refusal and tests containment
+- diff: 90188ec1ad425e56db6c36383a0c54663ddabcfae29e18f696f80800d3c00e17 (1 files, +45 -0)
+- run: tstyche packages/core/test/PortFacts.review.tst.ts
+- exit: 1
+- seen failing: a span that is a union of names is refused
+- seen failing: a span that is a union holding a pattern is refused
+- seen failing: two spans that share one member through their unions are refused
+- failing text: Error: Type 'unknown' is not the same as type 'never'.
+- failing text: Error: Type 'unknown' is not the same as type 'never'.
+- failing text: Error: Type 'unknown' is not the same as type 'never'.
+
+## span-distinct-accepted
+- scratch: rv-span at bb4ef25de0
+- edit: the fixed SpanOffenders planted to refuse every entry (its overlap arm replaced by K)
+- diff: 3b95d7de331fe3a0643430263419c32661290add0d4036f81f405f8b910d7ba6 (2 files, +78 -9)
+- run: tstyche packages/core/test/PortFacts.review.tst.ts
+- exit: 1
+- seen failing: a registry of distinct literal spans is accepted, the library's own included
+- failing text: Error: The type argument cannot be of the 'never' type.
+- failing text: Error: The type argument cannot be of the 'never' type.
+- failing text: Error: The type argument cannot be of the 'never' type.

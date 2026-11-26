@@ -590,8 +590,10 @@ REQUIREMENT: Each port's description MUST state its span as one literal, given
              module. `PortSpanName` and `PortSpanOf<N>` MUST be read from the
              registry, under the names they had.
 
-REQUIREMENT: A registry in which two ports name one span, or a port's span is a
-             pattern and not one literal, MUST NOT compile.
+REQUIREMENT: A registry in which two ports name one span (two equal literals, or
+             two unions that share a member), or a port's span is not one
+             literal (a pattern, a union of names, or a union holding a
+             pattern), MUST NOT compile.
 ```
 
 ```ts
@@ -607,13 +609,16 @@ const PORTS: PortTypes = {
 type PortSpanOf<N extends PortName> = PortTypes[N]["span"];
 ```
 
-The check refuses sharing and patterns. It does not refuse a port moving to a new literal of
-its own, which the span pins and the facts golden catch. `attributeResolverPort` claiming
+The check refuses sharing, patterns and unions: a span is refused unless it is one literal, and
+two spans are refused when they overlap, so two unions that share one member are refused as two
+equal literals are. It compares the ports' spans with each other only, because the other `qadi.`
+span names are spelled in their own modules and no type collects them. It does not refuse a port
+moving to a new literal of its own, which the span pins and the facts golden catch. `attributeResolverPort` claiming
 another port's span leaves two ports with one, so the property the cross-check of a
 description's `span` against its own port's name stood for is the check's. No span literal
 enters `PortAccess.ts`, `PortDerivation.ts` or devtools' `PortCalls.ts`.
 
-Pinned by `packages/core/test/PortFacts.tst.ts` ("PortSpanName is the five span names", "PortSpanOf is each port's own span", "no two ports share a span name, and each names one literal", "span and fixture are required members of a description"), `packages/core/test/PortName.tst.ts` ("a description's span is its own port's") and `packages/core/test/PortFacts.characterisation.test.ts` ("each port states its own facts").
+Pinned by `packages/core/test/PortFacts.tst.ts` ("PortSpanName is the five span names", "PortSpanOf is each port's own span", "no two ports share a span name, and each names one literal", "span and fixture are required members of a description"), `packages/core/test/PortFacts.review.tst.ts` ("a registry of distinct literal spans is accepted, the library's own included", "a span that is a union of names is refused", "a span that is a union holding a pattern is refused", "two spans that share one member through their unions are refused"), `packages/core/test/PortName.tst.ts` ("a description's span is its own port's") and `packages/core/test/PortFacts.characterisation.test.ts` ("each port states its own facts").
 
 ## BEH-QD-788: Each port's description states its fixture, and the fixture tables are read from the registry
 

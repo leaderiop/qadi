@@ -407,9 +407,9 @@ A description states its **span** and its **fixture**, two facts that were table
 argument, and a last `FixtureData` parameter, and `fixture: (data: FixtureData) => Layer.Layer<Self>` is a required member,
 each port's own builder. `PortSpanOf` and `PortSpanName` are read from the registry in `Ports.ts`, `PortFixtureData` is a
 mapped type over it and `PORT_FIXTURES` is `tabulatePorts((d) => d.fixture)`. `DistinctSpanNames`, applied at `PORTS`,
-refuses two ports that share a span and a span that is a pattern. **Breaking** for anything that builds a
-`PortDescription` by hand, because the interface shipped in a release; in this repository that is the five port modules
-and one test probe. The names are one tuple, `PORT_NAMES`, in the leaf `PortName.ts`, and `PortName` is its element type.
+refuses two ports whose spans overlap and a span that is not one literal (a pattern or a union). **Breaking** for anything
+that builds a `PortDescription` by hand, because the interface shipped in a release; in this repository that is the five
+port modules and one test probe. The names are one tuple, `PORT_NAMES`, in the leaf `PortName.ts`, and `PortName` is its element type.
 `PortServing` stays hand-written, and [ADR-QD-114](114-a-port-states-what-it-serves.md) holds.
 
 Two rejections above are reversed, each for the reason it does not hold now.

@@ -1606,12 +1606,15 @@ const routingMode = () => {
 
 // ---- the close runner ----
 
+/** The test files the review round adds, each of whose titles the close requires seen failing in the evidence. */
+const REVIEW_TESTS = ["packages/core/test/PortFacts.review.tst.ts"];
 const closeChildren = (gatePass) => [
   { label: `node ${D}90-pinned-check.mjs --all-applied`, argv: ["node", `${D}90-pinned-check.mjs`, "--all-applied"] },
   { label: `node ${D}90-earlier-checks.mjs`, argv: ["node", `${D}90-earlier-checks.mjs`] },
   ...["records --close", "scan-ids", "scan-forbidden", "trailers", "port-facts", "scoped-route derived", "routing-landed", ...(gatePass ? ["scoped-route route"] : []), "circular", "sixth-port close", "bench"].map((m) => ({ label: `90-check.mjs ${m}`, argv: ["node", SELF, ...m.split(" ")] })),
   ...["compare", "landed close", "landed coverage-close"].map((m) => ({ label: `90-mutation.mjs ${m}`, argv: ["node", `${D}90-mutation.mjs`, ...m.split(" ")] })),
   { label: "90-check.mjs seen-failing packages/core/test/PortFacts.mutation.test.ts --if-present", argv: ["node", SELF, "seen-failing", "packages/core/test/PortFacts.mutation.test.ts", "--if-present"] },
+  ...REVIEW_TESTS.map((file) => ({ label: `90-check.mjs seen-failing ${file}`, argv: ["node", SELF, "seen-failing", file] })),
   { label: "pnpm spec:package", argv: ["pnpm", "spec:package"] },
 ];
 const noReleaseFacts = (base) => ({
@@ -2396,6 +2399,7 @@ it("has \\"quotes\\"", () => {});`;
   eq("a child exiting 1 fails and is named", runChildren(children, (argv) => ({ code: argv[0] === "b" ? 1 : 0, last: "x" })).bad, ["b exited 1"]);
   eq("an empty child list fails", runChildren([], () => ({ code: 0, last: "" })).bad, ["the child list is empty"]);
   eq("the child list is not empty and names the phase's checks", [closeChildren(true).length > 0, closeChildren(false).length === closeChildren(true).length - 1, closeChildren(true).some((c) => c.label.includes("sixth-port close"))], [true, true, true]);
+  eq("the close requires every review-round test file seen failing", REVIEW_TESTS.map((f) => closeChildren(true).some((c) => c.label === `90-check.mjs seen-failing ${f}`)), REVIEW_TESTS.map(() => true));
   eq("the no-release facts at their base pass", judgeNoRelease({ versions: [{ file: "p", base: "1", now: "1" }], changelogs: [], tags: [], milestones: [] }), []);
   eq("a moved version fails", judgeNoRelease({ versions: [{ file: "p", base: "1", now: "2" }], changelogs: [], tags: [], milestones: [] }).length, 1);
   eq("a changed changelog, a tag at HEAD and a milestone path each fail", judgeNoRelease({ versions: [], changelogs: ["c"], tags: ["v1"], milestones: ["m"] }).length, 3);
