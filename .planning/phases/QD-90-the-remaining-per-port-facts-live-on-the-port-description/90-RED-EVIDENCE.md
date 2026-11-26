@@ -953,3 +953,23 @@ Each block below is one run of a phase check or a held mutation mode on a scratc
 - failing text: packages/core/test/PortName.tst.ts: its declared edit is not applied
 - failing text: packages/core/test/PortDescription.test.ts: its declared edit is not applied
 - failing text: packages/core/src/LeafNeeds.ts: its declared edit is not applied
+
+## earlier-guard-unexplained
+- scratch: earlier-guard at 4652820454
+- edit: AGENTS.md changed under a subject no ledger row names
+- diff: bfd272a1c824717aefcef27662db5083c4dccd1d9b3040a2d8faedbb1f6c9eb7 (1 files, +1 -1)
+- run: script 90-earlier-checks.mjs
+- exit: 1
+- failing text: 85-check.mjs scan-forbidden: expected exit 0, got exit 1: AGENTS.md differs from phase_base: no budget moves
+- failing text: 86-check.mjs scan-forbidden: expected exit 0, got exit 1: AGENTS.md differs from phase_base: no budget moves
+- failing text: 87-check.mjs scan-forbidden: expected exit 0, got exit 1: AGENTS.md differs from phase_base: no budget moves
+
+## earlier-records-unbumped
+- scratch: earlier-records at 31e23b27e0
+- edit: a change-history row appended to spec/README.md under the subject of the decision commit, the revision not bumped
+- diff: f2c2545693c03fdf76e7f5e27949f68df9dc6247b115172a2186baa9feb204b9 (1 files, +1 -0)
+- run: script 90-earlier-checks.mjs
+- exit: 1
+- failing text: 88-check.mjs records --close: missing reason "spec/README.md is at Revision 1.416, not 1.414"
+- failing text: 88-check.mjs records --close: missing reason "spec/traceability.md is at Revision 1.335, not 1.333"
+- failing text: 88-check.mjs records --close: unexpected reason "spec/README.md is at Revision 1.415, not 1.414"
