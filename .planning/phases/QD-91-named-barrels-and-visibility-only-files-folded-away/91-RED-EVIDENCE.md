@@ -523,3 +523,23 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - failing text: missing run: 86-check.mjs records --close
 - failing text: 85-check.mjs base: exit 0: 2741584f50d176281038b478d0350dc35f174cc2
 - failing text: 85-check.mjs scan-ids: exit 1: packages/devtools/test/model/DiagnosticsFeed.stop.test.ts:35 has phase-relative wording: /** The status tag of every notification a feed publishes from now on, in order. */
+
+## span-untrusted-decode
+- scratch: span-json at 136830bf37
+- edit: a JSON.parse call spread into the object decodePortSpan returns, in packages/core/src/PortSpanEncode.ts of the decoder-fold commit
+- diff: cb80f6c97fb46fa8b63eddb752b5102abfd289e99f1aec9c83431caa1fa4f05a (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/PortSpanEncode.ts  [untrusted-decode] declares 2 untrusted-decode token(s), found 3 at line(s) 71, 74, 273.
+- failing text:     Update UNTRUSTED_DECODE_BUDGET in scripts/check-house-style.mjs and AGENTS.md section 7a's table, with the reason, so they agree.
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## span-key-source
+- scratch: span-key at 136830bf37
+- edit: a second spelling of the shared subject id key, a spread of { subjectId: "qadi.subject_id" } into the object decodePortSpan returns, in packages/core/src/PortSpanEncode.ts of the decoder-fold commit
+- diff: 849d165f30e1f10336e49454d955cf3bffde8c90dbe543ab22a994e9f252cef8 (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/PortSpanEncode.ts:273  [span-key-source] mentions the span key `qadi.subject_id`; read it through EvaluationSpan.ts (ADR-QD-188).
+- failing text:     ...{ subjectId: "qadi.subject_id" },
+- failing text: 1 house-style violation(s). See AGENTS.md.
