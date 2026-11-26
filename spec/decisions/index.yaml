@@ -638,3 +638,7 @@ entries:
     file: "202-one-admission-step-for-a-hosts-audit-batch.md"
     title: "One admission step for a host's audit batch"
     status: "Accepted — amends ADR-QD-190 and ADR-QD-110"
+  - id: "ADR-QD-203"
+    file: "203-the-remaining-per-port-facts-live-on-the-port-description.md"
+    title: "The remaining per-port facts live on the port description"
+    status: "Accepted — amends ADR-QD-094, ADR-QD-163 and ADR-QD-134"
