@@ -4,8 +4,8 @@
  *
  * A member, a tag or a field type that moves fails here, and neither a list nor a look-alike object can pass as admitted
  * rows. `readonly` on a case field is inert under `Data.TaggedEnum`, so the pins claim members, tags and field types
- * only. Every pin is a positive `toBe` or a `not.toBeAssignableTo`, never a callable pin, so none of them depends on how
- * tstyche reads a call that returns an `Effect`.
+ * only. Every pin is a positive `toBe` or `toBeAssignableTo` or a `not.toBeAssignableTo`, never a callable pin, so none
+ * of them depends on how tstyche reads a call that returns an `Effect`.
  */
 import type * as Data from "effect/Data";
 import type * as Result from "effect/Result";
@@ -79,6 +79,8 @@ test("the shared members are one type in both unions", () => {
 });
 
 test("admitted rows are nominal", () => {
+  expect<AdmittedRows["entries"]>().type.toBe<ReadonlyArray<AuditEntry>>();
+  expect<AdmittedRows>().type.toBeAssignableTo<{ readonly entries: ReadonlyArray<AuditEntry> }>();
   expect<ReadonlyArray<AuditEntry>>().type.not.toBeAssignableTo<AdmittedRows>();
   expect<{ readonly entries: ReadonlyArray<AuditEntry> }>().type.not.toBeAssignableTo<AdmittedRows>();
   expect<OtherAdmittedRows>().type.not.toBeAssignableTo<AdmittedRows>();

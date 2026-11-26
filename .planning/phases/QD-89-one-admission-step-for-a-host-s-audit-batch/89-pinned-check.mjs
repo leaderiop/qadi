@@ -8,7 +8,7 @@
 //             change. `CodecMade.ts` was held here too until the review of the phase replaced its `rowsRefusal` with the
 //             per-entry question `isCodecMade`, which the step asks as it reads each index (the review's WR-02 and IN-03, and
 //             the security audit's Observation 1); it is a declared file since, changed only in its three regions.
-//   declared  four files, each changed only where the phase says it changes them. A region runs from a line starting with its
+//   declared  five files, each changed only where the phase says it changes them. A region runs from a line starting with its
 //             `from` text (inclusive) to the line starting with its `to` text (exclusive), or for `lines: n` the `n` base lines
 //             from the anchor; `from: null` is the file start and `to: null` its end; `lead: n` also covers the `n` lines before
 //             the anchor, each blank at the base. Each anchor occurs once at the base. The text before the first region, between
@@ -21,7 +21,7 @@
 //                        the fixed `lines`, or for a `describe` insertion a block that opens with the fixed line, holds exactly the
 //                        fixed row titles read as string literals, and ends with `});` and one blank line.
 //   born      five files written before the change they pin, each held byte for byte against the one commit that adds it (the
-//             characterisation apart from its declared regions); two adding commits fail, and a file with no adding commit passes
+//             characterisation and the type pins apart from their declared regions); two adding commits fail, and a file with no adding commit passes
 //             plain and fails `--all-applied`.
 // A held, declared or born file that `git diff -M --name-status <phase_base>` reports as moved or deleted fails, naming both paths
 // for a move. A file added under the test directory is not held: new tests are the phase's own.
@@ -263,12 +263,38 @@ const CODEC_REGIONS = [
   },
 ];
 
+/**
+ * The regions of `HostBatch.tst.ts`, declared by the review of the phase (IN-06): the nominal pins gain a positive anchor,
+ * so a collapse of `AdmittedRows` to `never` or to another shape fails them, and the header names the positive
+ * `toBeAssignableTo` among the pins.
+ */
+const TST_REGIONS = [
+  {
+    name: "pinWords",
+    from: " * only. Every pin is a positive `toBe` or a `not.toBeAssignableTo`, never a callable pin, so none of them depends on how",
+    lines: 2,
+    becomes: [
+      " * only. Every pin is a positive `toBe` or `toBeAssignableTo` or a `not.toBeAssignableTo`, never a callable pin, so none",
+      " * of them depends on how tstyche reads a call that returns an `Effect`.",
+    ],
+  },
+  {
+    name: "anchor",
+    after: 'test("admitted rows are nominal", () => {',
+    lines: [
+      '  expect<AdmittedRows["entries"]>().type.toBe<ReadonlyArray<AuditEntry>>();',
+      "  expect<AdmittedRows>().type.toBeAssignableTo<{ readonly entries: ReadonlyArray<AuditEntry> }>();",
+    ],
+  },
+];
+
 /** Each declared file with its regions, and the text its regions are read from: `base` is `phase_base`, `born` the adding commit. */
 const DECLARED = [
   { file: FOREIGN, regions: FOREIGN_REGIONS, from: "base" },
   { file: RETENTION, regions: RETENTION_REGIONS, from: "base" },
   { file: ORDER, regions: ORDER_REGIONS, from: "born" },
   { file: CODEC, regions: CODEC_REGIONS, from: "base" },
+  { file: BORN[3], regions: TST_REGIONS, from: "born" },
 ];
 
 /** The 1-based number of the first line two texts disagree on, or 0 when they do not. */
@@ -533,7 +559,7 @@ const selfTest = () => {
   const noKept = reasonsOf([{ name: "tail", from: 'describe("tail"', to: null, kept: ["law 9:"] }], text);
   const noLead = reasonsOf([{ name: "R3", from: '  it("R3 ', lead: 1, lines: 1, becomes: [] }], text);
   const real = DECLARED.every((d) => new Set(d.regions.map((r) => r.name)).size === d.regions.length);
-  const oneForm = [...FOREIGN_REGIONS, ...RETENTION_REGIONS, ...ORDER_REGIONS, ...CODEC_REGIONS].every((r) => [r.becomes !== undefined, r.kept !== undefined, r.after !== undefined || r.before !== undefined].filter(Boolean).length === 1);
+  const oneForm = [...FOREIGN_REGIONS, ...RETENTION_REGIONS, ...ORDER_REGIONS, ...CODEC_REGIONS, ...TST_REGIONS].every((r) => [r.becomes !== undefined, r.kept !== undefined, r.after !== undefined || r.before !== undefined].filter(Boolean).length === 1);
   const cases = [
     ["a held file that equals its base passes", equal.length === 0],
     ["a held file with one changed byte fails, naming the file and the line", byte.join() === "x.test.ts: differs from its base text at line 2"],
@@ -587,8 +613,8 @@ const selfTest = () => {
     ["a region anchor occurring more than once at the base fails", twice.some((r) => r.includes("anchor of region dup occurs 4 times"))],
     ["a region that ends before it starts fails", reversed.some((r) => r.includes("does not start before it ends"))],
     ["two regions that overlap at the base fail", overlap.some((r) => r.includes("overlaps the one before it"))],
-    ["each declared file names its regions once and reads from a text its adding commit or the base holds", real && DECLARED.length === 4 && DECLARED.every((d) => d.from === "base" || BORN.includes(d.file))],
-    ["the declared forms are the ones the phase fixes: seven, one, six and three regions, the block with four titles", FOREIGN_REGIONS.length === 7 && RETENTION_REGIONS.length === 1 && ORDER_REGIONS.length === 6 && CODEC_REGIONS.length === 3 && ADMITS_TITLES.length === 4 && FOREIGN_REGIONS.filter((r) => r.becomes?.length === 0).length === 4],
+    ["each declared file names its regions once and reads from a text its adding commit or the base holds", real && DECLARED.length === 5 && DECLARED.every((d) => d.from === "base" || BORN.includes(d.file))],
+    ["the declared forms are the ones the phase fixes: seven, one, six, three and two regions, the block with four titles", FOREIGN_REGIONS.length === 7 && RETENTION_REGIONS.length === 1 && ORDER_REGIONS.length === 6 && CODEC_REGIONS.length === 3 && TST_REGIONS.length === 2 && ADMITS_TITLES.length === 4 && FOREIGN_REGIONS.filter((r) => r.becomes?.length === 0).length === 4],
     ["every region of the codec leaf is a fixed becomes", CODEC_REGIONS.every((r) => Array.isArray(r.becomes))],
     ["every region of the characterisation is a fixed becomes, so no row there is held only by its title", ORDER_REGIONS.every((r) => Array.isArray(r.becomes))],
     ["each declared region has exactly one of the forms becomes, kept and insert", oneForm],

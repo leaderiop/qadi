@@ -548,3 +548,5 @@ Each row below was run against HEAD 76d38f52 (the source the review read) with o
   (scratch edit: verifySequenceIntegrity admits inside `Effect.withSpan(..., "qadi.audit.verifySequenceIntegrity")`; 6 row(s) failed under it)
 - check failed: pinned: packages/audit/test/AdmissionOrder.characterisation.test.ts: region direct is not the lines it becomes
   (scratch edit: a row `F6 an appended row` added after F5; under the `kept` form the region held only its describe line and passed it)
+- failed (variant entries-unknown): HostBatch.tst.ts admitted rows are nominal
+  (scratch edit: `AdmittedRows.entries` typed `ReadonlyArray<unknown>`; tstyche: "Type 'readonly unknown[]' is not the same as type 'readonly AuditEntry[]'" and "Type 'AdmittedRows' is not assignable to type '{ readonly entries: readonly AuditEntry[]; }'", 2 assertions failed while the three nominal refusals passed)

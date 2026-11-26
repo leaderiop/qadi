@@ -1521,7 +1521,8 @@ change is not Breaking.
 
 Pinned by `packages/audit/test/HostBatch.tst.ts`, which spells each union's members out independently of the source, asks
 for each union as its fragments plus its own members, asks the shared members to be one type, and asks that the
-`AdmittedRows` of the step is nominal.
+`AdmittedRows` of the step is nominal, with a positive anchor (its `entries` are a list of rows) so that a collapse to
+`never` or to another shape fails the nominal pins rather than passing them.
 
 ## BEH-QD-785: A policy's maxAgeMs is read once, and a policy that is not an object is MaxAgeInvalid
 
