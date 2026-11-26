@@ -107,13 +107,17 @@ const stringify = (value) =>
  * refusal: a hand-edited or truncated file must not compare equal to anything.
  */
 const validated = (snapshot, label) => {
-  if (snapshot === null || typeof snapshot !== "object" || typeof snapshot.entries !== "object") {
-    refuse(`${label}: not a surface snapshot`);
-  }
+  // `typeof null` is "object", so a null `entries`, entry or name is refused by name here
+  // rather than thrown as a TypeError by the reads below.
+  const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+  if (!isRecord(snapshot) || !isRecord(snapshot.entries)) refuse(`${label}: not a surface snapshot`);
   let total = 0;
-  for (const [entry, { names, count, both }] of Object.entries(snapshot.entries)) {
+  for (const [entry, recorded] of Object.entries(snapshot.entries)) {
+    if (!isRecord(recorded)) refuse(`${label}: ${entry} is not an entry of a surface snapshot`);
+    const { names, count, both } = recorded;
     if (!Array.isArray(names) || names.length === 0) refuse(`${label}: ${entry} has no names`);
     names.forEach((n, i) => {
+      if (!isRecord(n) || typeof n.name !== "string") refuse(`${label}: ${entry} lists a name that is not an object with a string name`);
       if (i > 0 && !(byName(names[i - 1].name, n.name) < 0)) refuse(`${label}: ${entry} lists ${n.name} out of order or twice`);
       if (!["value", "type", "both"].includes(n.kind)) refuse(`${label}: ${entry} ${n.name} has the kind ${n.kind}`);
     });
@@ -252,6 +256,11 @@ const selfTest = () => {
     refused("a stored both count that disagrees with its list is refused", () => validated({ ...base, entries: { "@scratch/pkg": { ...base.entries["@scratch/pkg"], both: 1 } } }, "tampered"), ["of kind both"]);
     refused("a stored total that disagrees with its entries is refused", () => validated({ ...base, total: 9 }, "tampered"), ["a total of 9"]);
     refused("a package with zero names in a snapshot is refused", () => validated({ entries: { "@scratch/pkg": { names: [], count: 0, both: 0 } }, total: 0 }, "empty"), ["has no names"]);
+    refused("a snapshot whose entries are null is refused by name", () => validated({ entries: null, total: 0 }, "null entries"), ["null entries: not a surface snapshot"]);
+    refused("a snapshot with no entries field is refused by name", () => validated({ total: 0 }, "no entries"), ["no entries: not a surface snapshot"]);
+    refused("an entry that is null is refused by name", () => validated({ entries: { "@scratch/pkg": null }, total: 0 }, "null entry"), ["@scratch/pkg is not an entry"]);
+    refused("a null name in a list is refused by name", () => validated({ entries: { "@scratch/pkg": { names: [null], count: 1, both: 0 } }, total: 1 }, "null name"), ["not an object with a string name"]);
+    refused("a name with no string name is refused by name", () => validated({ entries: { "@scratch/pkg": { names: [{ kind: "value" }], count: 1, both: 0 } }, total: 1 }, "nameless"), ["not an object with a string name"]);
     refused("a list out of order is refused", () => validated({ entries: { "@scratch/pkg": summarise([{ name: "b", kind: "value" }, { name: "a", kind: "value" }]) }, total: 2 }, "unsorted"), ["out of order"]);
     writeScratch(join(root, "noentry"), INDEX.base, { exportsMap: { ".": { import: "./lib/index.js" } } });
     refused("a public package with no types entry is refused", () => snapshotOf(join(root, "noentry")), ["no entry point"]);
