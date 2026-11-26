@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 89
 current_phase_name: One admission step for a host's audit batch
 status: executing
-stopped_at: Completed 89-08-PLAN.md
-last_updated: "2026-11-26T03:33:34.730Z"
+stopped_at: Completed 89-09-PLAN.md
+last_updated: "2026-11-26T03:50:36.142Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 88 complete, transitioned to Phase 89
-state_head: 21899c74316c8b5b70396fbedbdf72eeb70c7c5c
+state_head: a02209112bee9c8c0d0af507deaa166de7d6a4d0
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 51
-  completed_plans: 48
+  completed_plans: 49
   percent: 57
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 89 (One admission step for a host's audit batch) — EXECUTING
-Plan: 9 of 11
+Plan: 10 of 11
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 88 complete, transitioned to Phase 89
 
@@ -702,6 +702,7 @@ Progress: [██████░░░░] 57%
 | Phase 89 P06 | 10 min | 2 tasks | 1 files |
 | Phase 89 P07 | 35 min | 2 tasks | 7 files |
 | Phase 89 P08 | 12min | 2 tasks | 5 files |
+| Phase 89 P09 | 21 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1250,6 +1251,7 @@ Progress: [██████░░░░] 57%
 - [Phase 89]: 89-06: planPurge runs the shared age rule over its own admitted batch and does not call planRetention; a null or undefined policy is read as policy?.maxAgeMs and refused as MaxAgeInvalid { value: undefined }
 - [Phase 89]: Plan 89-07: the pinned check declares the rewritten direct rows as a block keeping only its own describe line and the helper that handed verifiedArchiveFacts a list as a declared removal, because the plan fixes new F titles and an AdmittedRows parameter the checker as written could not hold (decided autonomously).
 - [Phase 89]: 89-08: the per-entry-point comparison asserts refusal-or-nothing on both sides of one fault table, so no test restates which refusal wins
+- [Phase 89]: 89-09: the filter mutant in HostBatch.ts admitRows is EQUIVALENT (a hole is refused before the line) and the static takeRows arrow is EXAMINED after a hand run with ignoreStatic false; phase91_base is ArchiveFacts.ts at 54 of 54; audit coverage is measured with a path filter because --project audit measures no file
 
 ### Pending Todos
 
@@ -1337,8 +1339,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T03:33:34.606Z
-Stopped at: Completed 89-08-PLAN.md
+Last session: 2026-11-26T03:50:35.994Z
+Stopped at: Completed 89-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
