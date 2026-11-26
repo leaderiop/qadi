@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 90
 current_phase_name: The remaining per-port facts live on the port description
 status: executing
-stopped_at: Completed 90-10-PLAN.md
-last_updated: "2026-11-26T09:21:37.746Z"
+stopped_at: Completed 90-11-PLAN.md
+last_updated: "2026-11-26T09:25:30.451Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 89 complete, transitioned to Phase 90
-state_head: 38cc5c6d72bc39914695cae19f3a6aec3137f22b
+state_head: 49909ec157cd7154fdddd89cd4e484c2043e7465
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 67
-  completed_plans: 61
+  completed_plans: 62
   percent: 71
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-90 (The remaining per-port facts live on the port description) — EXECUTING
-Plan: 11 of 16
+Plan: 12 of 16
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 89 complete, transitioned to Phase 90
 
@@ -716,6 +716,7 @@ Progress: [███████░░░] 71%
 | Phase 90 P08 | 20min | 2 tasks | 2 files |
 | Phase 90 P09 | 15min | 2 tasks | 5 files |
 | Phase 90 P10 | 30min | 2 tasks | 12 files |
+| Phase 90 P11 | 25min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -1276,6 +1277,7 @@ Progress: [███████░░░] 71%
 - [Phase 90]: 90-08: the earlier-phase ledger's computed rows are keyed on the four exact subjects of plans 14 and 15; the five AGENTS.md scan-forbidden guard rows move on the house-rules commit alone
 - [Phase 90]: 90-09: PORT_NAMES is one public tuple in the import-free PortName.ts; PortName is its element type, PREDICATE_PORT_NAMES must satisfy PortName.
 - [Phase 90]: 90-10: makePortDescription's SpanName bound is the description's own span member type, so PortDerivation.ts holds no span literal
+- [Phase 90]: 90-11: FixtureDataOf, FixtureBuilders and FixtureVisitor stay unexported so the API surface stays at 943; the fixture is a required description member (D-11, D-11a)
 
 ### Pending Todos
 
@@ -1363,8 +1365,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T09:21:34.204Z
-Stopped at: Completed 90-10-PLAN.md
+Last session: 2026-11-26T09:25:30.334Z
+Stopped at: Completed 90-11-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
