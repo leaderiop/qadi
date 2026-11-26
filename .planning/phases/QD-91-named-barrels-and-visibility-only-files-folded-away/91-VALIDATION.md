@@ -4,7 +4,7 @@ slug: "named-barrels-and-visibility-only-files-folded-away"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 # audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
 status: validated
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-26"
 ---
@@ -114,8 +114,8 @@ Auditor: gsd-nyquist-auditor, at HEAD e083c5be (base 69e5247d). No tests written
 | Metric | Count |
 |--------|-------|
 | Requirements audited | 12 (BARL-01..05, WX-01..07) + 7 records (BEH-QD-791..795, INV-QD-427..428) |
-| Covered, run green, seen failing | 18 |
-| Partial | 1 (WX-03, G-1) |
+| Covered, run green, seen failing | 19 |
+| Partial | 0 (WX-03 was partial on G-1; resolved by the review fix round) |
 | Missing | 0 |
 
 ### Runs (this audit)
@@ -139,7 +139,7 @@ Auditor: gsd-nyquist-auditor, at HEAD e083c5be (base 69e5247d). No tests written
 | BARL-04 | `named-barrel` + `[named-barrel-self-test]` | yes | named-barrel-star-* (5), -mixed, -order, -self-test, span-*-after-folds | green |
 | BARL-05 | gate 13, doc examples, traceability --strict, records --close | yes | 91-check records / records-close | green |
 | WX-01/02 | `pnpm check:pr`, `91-earlier-checks.mjs` | yes / phase close | earlier-* | green (check:pr taken from 91-21-SUMMARY) |
-| WX-03 | gate 14 hydrate probe; `91-check changesets` | yes | hydrate-probe-refusal, changesets | partial: G-1 |
+| WX-03 | gate 14 hydrate probe and its probe guard; `91-check changesets` | yes | hydrate-probe-refusal, hydrate-probe-deleted, -capability-deleted, -refusal-deleted, -never-run, changesets | green (G-1 resolved) |
 | WX-04 | `91-check scan-forbidden`, `scan-ids` | phase close | scan-forbidden *, scan-ids | green |
 | WX-05 | `91-mutation.mjs compare`, coverage close | phase close | 91-mutation compare/landed-*, coverage-close-floor | green |
 | WX-06 | `91-check seen-failing` | phase close | seen-failing | green |
@@ -163,4 +163,11 @@ Auditor: gsd-nyquist-auditor, at HEAD e083c5be (base 69e5247d). No tests written
 - Not a validation gap, noted: `packages/react/src/QadiProvider.tsx` l.49-50 import `./GateWriter.ts` twice (type and value);
   no house-style rule refuses it.
 
-Compliance: `nyquist_compliant: false` until G-1 is closed.
+- **G-1 — RESOLVED (2026-11-26, `ff3a8994`).** Gate 14's probe guard covers `hydrateDecisions`: `REACT_RUNTIME_PROBES`
+  requires a call through the atom set and through a value holding `hydrate` alone (recorded by the module hook from the
+  first argument's shape), and `REFUSED_CALL_PROBES` requires the `@ts-expect-error` call on an object literal without
+  `hydrate`. Deleting either call, the refusal, or the whole block fails gate 14 with a named reason (RED blocks
+  `hydrate-probe-deleted`, `hydrate-probe-capability-deleted`, `hydrate-probe-refusal-deleted`, `hydrate-probe-never-run`,
+  each exit 1). See `91-REVIEW-DISPOSITION.md`.
+
+Compliance: `nyquist_compliant: true` — every item is green once G-1 is resolved; `pnpm check:pr` exit 0 at `e929195d`.
