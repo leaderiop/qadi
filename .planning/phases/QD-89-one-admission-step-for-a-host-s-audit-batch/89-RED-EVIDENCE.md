@@ -500,3 +500,12 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
   - check failed: entry-points-first: archiveAuditTrail: the first statement of its body does not call admitBatch or admitRows: const unused = now;
 - variant facts-take-list: verifiedArchiveFacts is typed with ReadonlyArray<AuditEntry> and reads the list
   - check failed: entry-points-first: verifiedArchiveFacts takes ReadonlyArray<AuditEntry>, not AdmittedRows
+
+## 89-09 the mutation close
+
+- close run: `pnpm exec stryker run stryker.audit.mjs --mutate` over the five base files and `HostBatch.ts`, alone on a clean tree at bd039183 with stdin closed: 248 mutants instrumented; AuditArchive.ts 78/78, ArchiveFacts.ts 54/54, Retention.ts 56/56, CodecMade.ts 18/18, HostBatch.ts 21/22 detected, one Survived and one Ignored; SequenceIntegrity.ts holds no mutant and Stryker lists no row for it
+- check failed: mutation probe: packages/audit/src/HostBatch.ts:86 is new and has a Survived mutant: MethodExpression -> taken
+- check failed: mutation probe: packages/audit/src/HostBatch.ts:69 is new and Ignored: ArrowFunction -> () => undefined
+- equivalent: packages/audit/src/HostBatch.ts MethodExpression taken: a hole is refused before the line, so no element is undefined and the filter only narrows the type
+- hand run: `pnpm exec stryker run <scratch config spreading stryker.audit.mjs with ignoreStatic: false, reports to the scratch directory> --mutate packages/audit/src/HostBatch.ts`, 12 seconds: 23 mutants, 22 Killed (the static ones among them), the one Survived mutant is the equivalent filter above
+- examined: packages/audit/src/HostBatch.ts ArrowFunction () => undefined: Killed

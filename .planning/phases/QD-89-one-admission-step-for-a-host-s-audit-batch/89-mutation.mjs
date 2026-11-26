@@ -68,13 +68,26 @@ const UNMEASURED_WHY = "every file the phase edits is under packages/audit/src/*
  * reason naming why no input reaches it. An entry is added only when the close has looked at the survivor and found no input
  * that reaches it. A stale entry (it matches no survivor of the close) fails `compare`.
  */
-const EQUIVALENT = [];
+const EQUIVALENT = [
+  {
+    file: "packages/audit/src/HostBatch.ts",
+    mutatorName: "MethodExpression",
+    replacement: "taken",
+    lineText: "return Result.succeed(new AdmittedRows(taken.filter(Predicate.isNotUndefined)));",
+    reason: "a hole is refused before this line, so no element is undefined and the filter only narrows the type: the mutant admits the same elements in the same order",
+  },
+];
 /**
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and Killed there: the config spread
  * with `ignoreStatic: false`, run with `--mutate <file>`. A born file has no base, so its allowance is the whole of what it
  * holds. An entry is added only when such a mutant was run by hand and seen Killed.
  */
-const EXAMINED = {};
+const EXAMINED = {
+  "packages/audit/src/HostBatch.ts": {
+    // takeRows: the arrow that reads one index of the host's list; run by hand with ignoreStatic false, it is Killed.
+    "ArrowFunction () => undefined": 1,
+  },
+};
 const invocation = (name) => `pnpm exec stryker run ${CONFIG} --mutate ${FILES[name].join(",")}`;
 const DETECTED = new Set(["Killed", "Timeout"]);
 const OPEN = new Set(["Survived", "NoCoverage"]);
