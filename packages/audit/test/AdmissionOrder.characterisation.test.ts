@@ -78,16 +78,14 @@ const spansOf = <A, E>(effect: Effect.Effect<A, E>) => {
 const outcomeOf = (result: Result.Result<unknown, { readonly _tag: string }>) =>
   Result.isFailure(result) ? result.failure._tag : "success";
 
-/**
+/*
  * The pairs of faults no input can make, each with the reason; every other pair of faults of a function has a row.
- * Two forms of one input exclude each other, and a value that is not a list holds no rows to hold a second fault.
+ * Two forms of one input exclude each other, and a value that is not a list holds no rows to hold a second fault:
+ * - key material not a list x key-material item: two forms of one input;
+ * - maxAgeMs NaN x maxAgeMs -1: two forms of one input;
+ * - rows not a list x row item: a value that is not a list holds no rows;
+ * - rows not a list x break: a value that is not a list holds no rows.
  */
-export const IMPOSSIBLE = [
-  { pair: "key material not a list x key-material item", why: "two forms of one input" },
-  { pair: "maxAgeMs NaN x maxAgeMs -1", why: "two forms of one input" },
-  { pair: "rows not a list x row item", why: "a value that is not a list holds no rows" },
-  { pair: "rows not a list x break", why: "a value that is not a list holds no rows" },
-] as const;
 
 const good = codecRow("good");
 const a = codecRow("a");

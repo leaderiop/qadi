@@ -110,6 +110,26 @@ const ORDER_REGIONS = [
     to: 'import { decisionRecord, numbered } from "./helpers.ts";',
     becomes: ['import { verifiedArchiveFacts } from "../src/ArchiveFacts.ts";', 'import { admitRows } from "../src/HostBatch.ts";'],
   },
+  // The impossible pairs were an exported constant nothing read; the review of the phase made them a comment (IN-05). The
+  // region opens at `outcomeOf`, kept as it is, because the comment's opening line occurs many times in the file.
+  {
+    name: "impossible",
+    from: "const outcomeOf = (result: Result.Result<unknown, { readonly _tag: string }>) =>",
+    lines: 13,
+    becomes: [
+      "const outcomeOf = (result: Result.Result<unknown, { readonly _tag: string }>) =>",
+      "  Result.isFailure(result) ? result.failure._tag : \"success\";",
+      "",
+      "/*",
+      " * The pairs of faults no input can make, each with the reason; every other pair of faults of a function has a row.",
+      " * Two forms of one input exclude each other, and a value that is not a list holds no rows to hold a second fault:",
+      " * - key material not a list x key-material item: two forms of one input;",
+      " * - maxAgeMs NaN x maxAgeMs -1: two forms of one input;",
+      " * - rows not a list x row item: a value that is not a list holds no rows;",
+      " * - rows not a list x break: a value that is not a list holds no rows.",
+      " */",
+    ],
+  },
   // `verifiedArchiveFacts` takes admitted rows, so the helper that handed it a list goes with the rewritten direct rows.
   { name: "factsFailure", from: "const factsFailure = (entries: ReadonlyArray<AuditEntry>) =>", lines: 2, lead: 1, becomes: [] },
   // The four rows flip their spans with the change, and the review of the phase retitled them and their block to the
@@ -510,7 +530,7 @@ const selfTest = () => {
     ["a region that ends before it starts fails", reversed.some((r) => r.includes("does not start before it ends"))],
     ["two regions that overlap at the base fail", overlap.some((r) => r.includes("overlaps the one before it"))],
     ["each declared file names its regions once and reads from a text its adding commit or the base holds", real && DECLARED.length === 4 && DECLARED.every((d) => d.from === "base" || BORN.includes(d.file))],
-    ["the declared forms are the ones the phase fixes: seven, one, four and three regions, the block with four titles", FOREIGN_REGIONS.length === 7 && RETENTION_REGIONS.length === 1 && ORDER_REGIONS.length === 4 && CODEC_REGIONS.length === 3 && ADMITS_TITLES.length === 4 && FOREIGN_REGIONS.filter((r) => r.becomes?.length === 0).length === 4],
+    ["the declared forms are the ones the phase fixes: seven, one, five and three regions, the block with four titles", FOREIGN_REGIONS.length === 7 && RETENTION_REGIONS.length === 1 && ORDER_REGIONS.length === 5 && CODEC_REGIONS.length === 3 && ADMITS_TITLES.length === 4 && FOREIGN_REGIONS.filter((r) => r.becomes?.length === 0).length === 4],
     ["every region of the codec leaf is a fixed becomes", CODEC_REGIONS.every((r) => Array.isArray(r.becomes))],
     ["each declared region has exactly one of the forms becomes, kept and insert", oneForm],
   ];
