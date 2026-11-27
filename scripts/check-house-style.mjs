@@ -1093,7 +1093,7 @@ const collect = (dir, { includeTests = false } = {}) => {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       out.push(...collect(full, { includeTests }));
-    } else if (/\.tsx?$/.test(full) && !/\.tst\.ts$/.test(full)) {
+    } else if (/\.tsx?$/.test(full) && !full.endsWith(".tst.ts")) {
       if (includeTests || !/\.test\.tsx?$/.test(full)) out.push(full);
     }
   }

@@ -310,7 +310,7 @@ export const makeQadiAtoms = (
    * `serviceOption`, because `DecisionCache` is optional — an atom set without
    * one must not fail here, and most do not have one.
    */
-  const invalidate = runtime.fn((_: void) =>
+  const invalidate = runtime.fn<void>()(() =>
     Effect.gen(function* () {
       const cache = yield* Effect.serviceOption(DecisionCache);
       if (Option.isSome(cache)) yield* cache.value.clear;
