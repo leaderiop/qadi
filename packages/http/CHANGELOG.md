@@ -1,5 +1,46 @@
 # @qadi/http
 
+## 0.13.0
+
+### Minor Changes
+
+- 5784bbd: **Breaking.** `SignatureHistoryUnavailableResponse` and `DecisionHistoryUnavailableResponse` carry `subjectId` and `event` only when the error has them, following `@qadi/core`'s optional members, so a client that reads either member unconditionally finds it absent for a request whose subject id or event is unreadable or is not a string, whether or not the port's key refused it.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 2716def: **Breaking.** The decision routes take a `DecisionLogReader`, whose element type is `@qadi/core`'s `StoredRecord`, now `{ environment, record }`: a reader built from flat records no longer typechecks. No `@qadi/http` source changed, and the bytes the routes write are the same.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+### Patch Changes
+
+- bbd3a5c: The served port routes read `@qadi/core`'s `PORT_NAMES` instead of a list of their own. The routes and their order are unchanged. No export changes.
+- 5784bbd: A remote port whose HTTP client fails with an error whose `message` cannot be read fails with the port's own typed error, its transport message `a value that could not be described`, instead of a defect.
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [4451011]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+  - @qadi/core@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

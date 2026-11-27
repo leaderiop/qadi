@@ -1,5 +1,96 @@
 # @qadi/core
 
+## 0.13.0
+
+### Minor Changes
+
+- 4451011: `compilePredicate`, `CompilePredicateOptions` and `CompileOutcomes` are new exports: the compile shell a dialect package runs its rules and renderer in. It applies the `identifiers` and `maxInValues` defaults, classifies with `toRenderable`, counts a refusal on the `refused` series it is handed, renders, and only then counts `compiled`, so a defect in classification or in the renderer counts neither. Its `rules` is a dialect's `RenderRules` without `identifiers` and `maxInValues`, and a value carrying either does not type-check, so a dialect's own bound is never silently replaced by the default. It is a plain function with no span of its own, and core declares no compile counter: each dialect passes its own.
+- 2716def: **Breaking.** `DecisionCacheShape.getOrCompute` takes the question and, optionally, `{ concurrency }`, the `concurrency` option of `evaluate`. It no longer takes a `compute`, and passing one is a compile error. `decisionCacheLayer()` walks the question it is given, so no caller can store a trace under a question that trace does not answer.
+
+  A hand-written `DecisionCacheShape` must produce its own trace for the question it is handed, and core does not export the walk: wrap `decisionCacheLayer()` and delegate to it. Callers of `evaluate` and of the enforcing entry points see no change.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 5784bbd: **Breaking.** The outcome of the `qadi.evaluate` span is now the key `qadi.outcome`, with the values `Allow`, `Deny` and `Failed` on every path that ends in a decision or a typed failure; `qadi.decision` is removed. An interrupted or defected evaluation carries its question and no outcome, and the span's status says why. Nothing is written under both keys, so a tracer query on `qadi.decision` moves to `qadi.outcome`.
+
+  A failed `qadi.evaluate` span now carries its question, `qadi.subject_id`, `qadi.evaluation_id`, `qadi.policy_tag` and `qadi.action` when supplied, beside `qadi.outcome` and `qadi.error_tag`, where it used to carry only those two, so a query by subject or by evaluation id sees failed evaluations too. The other spans of the family carry their questions as well: `qadi.toPredicate` the subject, the policy tag and the action when supplied, and `qadi.error_tag` when the translation fails; `qadi.guardHealthCheck` the subject, the policy tag and the action when supplied; `qadi.decideSubjects` and `qadi.decideSubjectsStream` the policy tag and `qadi.action` when supplied.
+
+  Each evaluation annotates its span twice, the question and then the answer, and ADR-QD-188 records the measured cost (about 0.3–0.9 µs per call).
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 4451011: **Breaking.** `LoadedEnforceOptions` is renamed `HandoverOptions`, with no alias. It is the options type of every entry point that hands over a value.
+
+  **Breaking.** `guard`, `filter`, `filterStream`, `filterProjected` and `filterStreamProjected` take `HandoverOptions` and refuse `options.resource`, which they silently dropped. An untyped caller's resource is ignored at runtime, and `enforceProjected` now decides with no resource even when one is passed at runtime.
+
+  `enforce` and `assert` keep `options.resource`: they hand over no value, so there is no second resource to disagree with.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- bbd3a5c: **Breaking.** Each port's description states its span name and its fixture. `PortDescription` gains a span-name type parameter and a required `fixture` member.
+
+  `PORT_NAMES`, the five port names in registry order, is exported.
+
+  `PortSpanName`, `PortSpanOf`, `PortFixtureData` and `PORT_FIXTURES` keep their names and shapes. Metric ids, descriptions, span names and served and wire bytes are unchanged.
+
+  Two ports sharing a span name is now a compile error.
+
+  Upgrading: a description built by hand adds `fixture`. The two new type parameters have defaults, `SpanName` the pattern `` `qadi.${string}` `` and `FixtureData` `never`, so a description that passes the eight or nine type arguments it passed before compiles with `fixture` added; pass the span literal as `SpanName` only where code reads `span` as that literal. Code that names `PortDescription<K, …>` to read `span` uses `DescriptionOf<K>` or `PortSpanOf<K>`. See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 5784bbd: **Breaking.** `ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput` are removed: `decisionHistoryFromEvents` keys its rows through `decisionHistoryPort.key`, so nothing reads the classes, and `ActedAnywhereInput` typed only `ActedAnywhere`. Nothing replaces them for a host, which keys its own history set with `decisionHistoryPort.key` too; `ActedEventInput` stays. `SignatureHistoryUnavailable.subjectId` and `DecisionHistoryUnavailable.event` are optional, absent exactly when the request's value for it was unreadable or one the member's schema refuses (a subject id or an event that is not a string), whether or not the port's key refuses it, and the cause is the refusal's sentence when the key refuses the request and the store's own cause when it admits it, so a sink record carrying either error may omit it and a decoder accepts it absent. `decisionHistoryFromEvents` fails a row or a request the key refuses with `DecisionHistoryUnavailable`, where it had answered `"NotActed"` or thrown, and `signatureHistoryFromSignatures` fails a refused request with `SignatureHistoryUnavailable`, where the read died. A `null` or `undefined` row, a getter that throws and a proxy whose trap throws fail the same way in both fixtures, and in both judgements for a site's subject or resource, each with a cause that names the field and what was thrown, where each had thrown out of the fixture.
+
+  `signatureAnswerFromSignatures` and `actedAnswerFromEvents` answer what the signature and history fixture ports, read for a leaf at a site over fixture rows, answer, as a `Result` with no Effect. Each fixture's layer and its judgement read one lookup, so they cannot answer differently.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 2716def: **Breaking.** A stored record is `StoredRecord`, one class `{ environment, record }`, built with `new StoredRecord({ environment, record })`: the shape the wire already had, held in memory too. `stored._tag` and every field of the record move under `stored.record`, so `stored.evaluationId` is `stored.record.evaluationId`. `Stamped`, `StoredDecisionRecord`, `StoredObligationRecord` and `stampRecord` are removed, with no alias. `sinkRecordOrder`, a new export, orders records, and `storedRecordOrder` now orders `StoredRecord`s by the record each holds. The wire is unchanged byte for byte, and so is every refusal `decodeStoredRecord` gives.
+
+  The decision log no longer logs `qadi: a decision log's append half failed` or its publish twin. A defect in either half is reported once, by the sink emitter, as a defect in any sink is.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 5784bbd: `@qadi/core` exports `thrownMessage`, a caught value as text (an `Error`'s `message` when it is a string, otherwise the value's `String` form, and where neither can be read the words `a value that could not be described`), and `causeMessage`, an Effect `Cause` as text (its `Cause.pretty` rendering when that renders, otherwise `thrownMessage` of the value it failed or died with); neither ever throws. `toJson`, `toJsonRecord`, a port's request key and a port wire's question and answer encoding refuse, as documented, instead of throwing when the value they caught has a throwing `message` getter or `toString`; a custom predicate that fails or dies with such a value ends as `CustomPredicateError` instead of a defect, its reason reading those words; a port wire whose conversion throws an `Error` refuses with the message alone, without the `Error: ` prefix; a sink record whose getter throws an `Error` with a non-string `message` is refused with that error's string form.
+- 2716def: **Breaking.** `untrustedDecoder(schema, options)` takes a required options object, and its `unknownKeys` is required: `UnknownKeyPolicy`, a new export, is `"refuse" | "ignore"`. It says what the decoder does with a top-level key its schema does not declare. A call that passed no options passes `{ unknownKeys: "refuse" }`, and one that passed `unwalked` or `prepare` adds `unknownKeys: "refuse"` beside it; either keeps every answer it gave. `"ignore"` is for a decoder whose input is a versioned envelope that a newer producer may extend.
+
+  A record (`decodeSinkRecord`, `decodeSinkRecordString` and `decodeSinkRecordWithJson`), and so an audit row or an archive entry that carries one, whose record has an unknown top-level key nested past the decode bound now decodes. It was `TooDeep`. With `version: 3` it is `UnsupportedVersion`. An unknown key inside the policy is still refused.
+
+  `decodeStoredRecord` and `decodeStoredRecordString` keep every refusal tag and now carry the strict decoder's messages in place of their own:
+
+  - not an object: `Expected object`
+  - a bare record, `{}`, or a record with no `environment`: `Missing key` at `["environment"]`
+  - an `environment` that is not a string: `Expected string` at `["environment"]`
+  - an `environment` and no `record`: `Missing key` at `["record"]`
+
+  An `environment` nested past the bound is now `TooDeep`, where it was `Malformed`.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 0f96ec5: `@qadi/core` exports `valueText`, the JSON text of a value or `undefined` when it has none, and `valueLabel`, a value as a label (a bigint as its digits and `n`, otherwise its JSON text, and where there is none the words `a value with no JSON form` for an object or `undefined` for anything else). Neither throws. `explain` no longer throws on a bigint or a circular literal: it writes a bigint as its digits and `n` (`10n`), a list with no JSON text element by element, and any other value with no JSON form as `a value with no JSON form`. An object whose `toJSON` gives nothing, written `undefined` before, now takes those words. Every other explanation is unchanged.
+- 0f96ec5: `@qadi/core` now describes a decode refusal itself. `describeDecodeRefusal` gives one bounded sentence per `DecodeRefusal`, saying whose fix it is. `decodeRefusalAnnotations` and its `DecodeRefusalAnnotations` type give the one `qadi.refusal` log key, the refusal's tag and never what was sent. `decodeRefusalOf` turns an untrusted decoder's refusal into the sink wire's vocabulary. `decodeSinkRecordWithJson` returns a record and its JSON form from one strict decode, as `DecodedSinkRecord`. No wire byte and no refusal changes.
+- 4451011: `@qadi/core` now states the five states a guard reports it rendered once, in one module-private table, and exports `GateState`, `gateStates` and `isGateState` read off it: `GateState` is the union (`Failed`, `Denied`, `Rechecking`, `Pending`, `Allowed`), `gateStates` lists them worst news first, and `isGateState` tests an own key, so an inherited name such as `toString` is not a state. `@qadi/react`'s `GateRenderState` is now this type, and `@qadi/devtools` reads its display from it, so a sixth state is a compile error in both. A state a devtools build does not recognise is still shown, as `Unrecognised`.
+- 0f96ec5: `@qadi/core` now states each hydration drop reason once, in one table with its kind (`dehydration`, `payload` or `entry`) and its meaning, and exports two types read off it: `HydrationDropReasonOf`, the reasons of one kind, and `HydrationDropRow`, the shape every row satisfies. `DehydrationDropReason`, `ClientHydrationDropReason`, `HydrationDropReason`, `hydrationDropReasons`, `isHydrationDropReason` and `hydrationDropMeaning` keep their names and types and are derived from it, which is source-compatible. `isHydrationDropReason` tests an own key, so an inherited name such as `toString` is not a reason. The object `hydrationDropMeaning` returns also carries the row's `kind` at run time while its type stays `HydrationDropMeaning`. The metric `qadi_hydration_dropped_total`, its words and their order are unchanged.
+- 4451011: **A port's fail-closed default is a fact its service carries.** `isPortDefault(description, service)` is new and answers whether a service is that port's fail-closed default. `nonePort` marks the default it builds, and every derived wrapper (`…Retrying`, `…Bounded`, `…TimingOut`, `recordingPort`) and `decoratePorts` carry the mark forward. A hand-written wrapper keeps it by spreading `inner`; one that builds a fresh object does not, and reads as a real adapter. `decoratePorts` marks whatever its decorator returns for a slot that held a default, so a decorator that swaps in a real implementation still reads defaulted (a result that accepts the property is marked in place; otherwise it is copied). The mark is a symbol-keyed property, so `Object.keys`, JSON and a structural clone are unchanged, and evaluation never reads it. The change is additive and no outcome changes.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 4451011: **A decision sink that fails is reported once.** Whatever a sink's `record` does that loses the record is contained, as before, and is now logged once at `Warn`: `qadi: a decision sink failed; the record was not delivered`, annotated `qadi.sink`, `qadi.record_tag`, `evaluationId` and `qadi.cause`. That covers a defect, a throw (including one before `record` returns an effect, which used to end `evaluate`), a self-interruption, and a failure leaked through a type escape. The decision is unchanged, and the line carries nothing about the subject, resource, policy or action.
+
+  `DecisionSinkShape` gains an optional `name`, reported in `qadi.sink` (`unnamed` without one). `decisionSinkForwarding`, `decisionSinkAll`, the decision log's sink and the simulation shadow name themselves. `decisionSinkAll`'s member line, "a fanned-out decision sink failed unexpectedly", gains `qadi.sink`, `qadi.record_tag` and `evaluationId`, and a member that throws before returning an effect no longer stops the members after it. A throwing `onFailure` on a send failure is now reported by the emitter's line, naming `decisionSinkForwarding`, instead of "a decision record could not be forwarded", and a `send` that throws before returning an effect now reaches `onFailure`.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 0f96ec5: `@qadi/core` now exports `WIRE_VERSION`, the record-wire version `encodeSinkRecord` writes, stated once. `WIRE_VERSIONS` (the versions `decodeSinkRecord` reads) and `WireVersion` are derived from it, and `WIRE_VERSIONS`'s type narrows from `ReadonlyArray<2>` to `readonly [2]`, which is source-compatible: every read it answered still type-checks. The bytes on the wire are unchanged.
+
+### Patch Changes
+
+- bbd3a5c: The `ThrownMessage.ts` doc comments name where `String` of a `Cause` still stands. No export changes.
+- 2716def: `untrustedDecoder`'s `ignore` projection reads only what the schema declares. It took an in-process value's own entries, which ran every own enumerable accessor, declared or not, before it kept the declared keys, so an undeclared accessor that threw was thrown out of `decodeSinkRecord`, `decodeSinkRecordWithJson` and `decodeStoredRecord`. It now reads the value's own key names, then copies each declared value, reading it once, and never reads an undeclared key's value. A schema that flattens to more than one member reads `_tag` once more, to choose the member, so twice in all; one that flattens to a single member, such as the stored envelope, chooses no member, so a declared `_tag` is read once, as a kept value, and an undeclared `_tag` accessor is never invoked. Under `refuse`, and below the top level, the depth guard and the decode still read own values, accessors included. The signature and every refusal are unchanged.
+- bbd3a5c: No export changes. The barrel names its exports per module; `decodePortSpan` and `PortInterpreter` are declared where their concepts live.
+- 4451011: `evaluate` and `toPredicate` now read one package-private statement of what each policy leaf needs from the request, with the check order unchanged: a leaf's own input first, then what its matcher references, the action before the resource. A `MissingAction` that `toPredicate` raises for a matcher comparing against `action()` now carries no `expected` key, instead of an own `expected: undefined`, as `evaluate`'s already did. The encoded form is unchanged, because `expected` is optional on the wire.
+- 2716def: `evaluate` and `toPredicate` now read one package-private verdict row per policy leaf, and the acted leaf's polarity and its `Unknown` rule are stated once. Decisions, deny reasons and folded predicates are unchanged, and no export changed.
+- 2716def: A record read now has one owner, and three behaviours that disagreed with `evaluate` are fixed. `evaluatePredicate` no longer admits a row through an inherited member: a prototype-named column such as `constructor` now reads as absent, as `evaluate` always did. `attributeResolverFromRecord` answers `undefined` for a name its table does not own, instead of an inherited member. `customPredicateFromRecord` fails with its documented `CustomPredicateError` "no predicate is registered under this name" for such a name instead of dying. A row passed to `evaluatePredicate` as a class instance with prototype getters now reads those getters as absent, matching `evaluate`.
+- 4451011: Each policy tag's arity (no children, exactly one, or any number) is now stated once, in a package-private record that `childrenOf`, `LeafPolicy`, `PolicyCases`, `TraceCases` and the trace fold are checked against, so moving an arity in one place and not another fails to compile. No public type, export or outcome changes: `LeafPolicy` is the same type. A trace node whose tag is not a `Policy` tag still makes `foldTrace` throw before any arm runs, but the error is now a `TypeError` rather than `Match.exhaustive`'s `absurd` error.
+
 ## 0.12.0
 
 ### Minor Changes

@@ -1,5 +1,40 @@
 # @qadi/promise
 
+## 0.13.0
+
+### Minor Changes
+
+- 4451011: **Breaking.** `filter` and `filterProjected` refuse `resource` in their options (`Omit<FacadeOptions, "resource">` with `resource?: never`, so a `FacadeOptions` variable is refused too), as `projected` does: each item is the resource of its own decision, so a second one cannot be written.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+### Patch Changes
+
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [4451011]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+  - @qadi/core@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

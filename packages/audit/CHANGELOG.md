@@ -1,5 +1,75 @@
 # @qadi/audit
 
+## 0.13.0
+
+### Minor Changes
+
+- 4451011: **Breaking.** `AuditDecisionSinkLive`'s layer is now `Layer<DecisionSink, InvalidAuditSinkOption, AuditTrailPort>`, where its error was `never`. Building it with an option that cannot work fails with `InvalidAuditSinkOption`, naming the option and the value received. Refused: a `failureThreshold` that is not a positive safe integer (`NaN` built a breaker that never opened), a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds within the safe integers, and a `storeCallTimeout` that is not a positive duration (zero timed every store call out at once). A plain-number `resetTimeoutMs` must be whole; a string or `Duration` form is read to the nanosecond, as `Duration` keeps it, and must come to whole milliseconds (`"1.5 millis"` is refused, `"1.5 seconds"` accepted). For `storeCallTimeout` only, `Duration.infinity` is still accepted as no deadline. This is also a runtime break: `failureThreshold: Infinity` (a breaker that never opens) and `resetTimeoutMs: Duration.infinity` (a breaker that never leaves Open; unlike `storeCallTimeout`, the cooldown has no infinite opt-out) were accepted and are now refused, as is any value past `Number.MAX_SAFE_INTEGER`. Pass `Number.MAX_SAFE_INTEGER` for either to keep the effect; the sink has no option to run without its breaker. A composition that passes no options, or valid ones, behaves as before; code that annotates the layer, or an `Effect` that provides it, with an error of `never` must widen it.
+
+  The breaker's rules are now one transition function. Its status, announcements and `transitionsTotal` are unchanged. `InvalidAuditSinkOption` is exported.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 4451011: **Breaking.** `AuditEntryNotEncodable` is removed: `encodeAuditEntry` fails with, and `AuditDecisionSinkLive`'s `onRefused` receives, `@qadi/core`'s `SinkRecordNotEncodable`, the error `decisionSinkForwarding` and `DecisionLogHttp` already report. It has the same `evaluationId`, `recordTag` and `refusal` fields. Its `reason` field is gone, and `describeEncodeRefusal(e.refusal)` gives the same sentence; like `reason`, it may carry caller text (an `EncodeFailed` sentence includes a throwing getter's message), so it is for diagnosis in code holding the refusal, not for a log line. To log a refusal, annotate `encodeRefusalAnnotations(e)`, which is what the default warning carries: no value from the record, though `qadi.path` is made of the record's own keys, so a resource keyed by data puts that key in the line (INV-QD-104). `Effect.catchTag("AuditEntryNotEncodable", …)` becomes `Effect.catchTag("SinkRecordNotEncodable", …)`, and an `onRefused` annotated with the old class takes `SinkRecordNotEncodable` instead. `AuditWriteOutcome`'s `Refused.refusal` has the new type too.
+
+  The refusal warning, every other log line, every metric and every span attribute are unchanged. Whether an unwritten entry was lost is now decided in one place, with the same output.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- ac7578f: **Breaking.** An audit row is a value only its codec makes, so the archive writer never receives a row its own reader refuses. Six changes:
+
+  - `AuditEntry` is a type that only `encodeAuditEntry` and `decodeAuditEntry` make, and the exported `AuditEntry` schema value is removed. An object literal or a spread of a row is not an `AuditEntry` and does not compile where one is wanted. A store's sequence number reaches a row when the store returns the row, through `decodeAuditEntry({ record, sequenceNumber })`.
+  - `SequenceNumberInvalid` is removed. A row's number is a safe integer by construction, because `decodeAuditEntry` refuses any other as `Malformed`, so `verifySequenceIntegrity` and `archiveAuditTrail` fail `SequenceIntegrityError` for the sequence alone.
+  - `undated` is removed from `planRetention`, `RetentionPlan` and `PurgePlan`. A row's `at` is finite, so `planRetention` returns `{ retained, expired }` and `planPurge` returns `{ purge, retain, unarchived }`.
+  - `archiveAuditTrail` fails the new `ArchiveInputInvalid`, with the refusal `NowNotFinite` and the value given, for a `now` that is `NaN` or an infinity, before it reads the sequence facts; it archived such a bundle with a `null` `createdAt` that `readAuditArchive` refused. It also reads the `keyMaterial` list once and each item's fields once, and writes each item as its three declared fields, `keyId`, `algorithm` and `publicKey`, and no other property of a wider value, so what it checked is what it wrote.
+  - The codec records each row it makes, so a value the codec did not make is refused at run time where the type cannot stop it: a row a store client returns as `any`, or a JavaScript caller's object. `archiveAuditTrail`, `verifySequenceIntegrity`, `planRetention` and `planPurge` fail on the first such entry with the refusal `EntryNotMadeByCodec` and its `index`, and on `entries` that is not a list (`undefined`, `null`, an object) with `EntriesNotAList` and the value given, instead of a `TypeError`. `archiveAuditTrail` also holds `keyMaterial` to the reader's own schema, so an item typed `any` with a number `keyId` is refused instead of archived for the reader to refuse, and a `null` item or a value that is not a list fails with a typed error instead of a `TypeError`: it fails `ArchiveInputInvalid` with `KeyMaterialItemRefused` and the `index` of the first item refused, or `KeyMaterialNotAList` and the value given. `ArchiveInputInvalid` and `RetentionInputInvalid` carry a `refusal`, a member of the closed `Data.TaggedEnum` `ArchiveInputRefusal` (`NowNotFinite`, `KeyMaterialNotAList`, `KeyMaterialItemRefused`, `EntriesNotAList`, `EntryNotMadeByCodec`) or `RetentionInputRefusal` (`NowNotFinite`, `MaxAgeInvalid`, `EntriesNotAList`, `EntryNotMadeByCodec`), read with `Match.tagsExhaustive`; a member holds `unknown` only where it carries the value given, and an `index` is a number. `RetentionInputInvalid` carries its `refusal` in place of the `field` and `value` it had. `verifySequenceIntegrity` can fail `ArchiveInputInvalid` as well as `SequenceIntegrityError`. A row read back through `decodeAuditEntry` or made with `encodeAuditEntry` is unaffected, except that the codec freezes each row it makes and the `record` object it built, so a write to a row's `sequenceNumber` or to its `record` throws a `TypeError` in strict mode.
+  - `decodeAuditEntry` reads the row's envelope before its record. A row that is not an object, has no record or carries an undeclared top-level key is refused with the strict decoder's own message, and a row that is bad in both places is refused for the envelope. Every refusal tag, and every row it accepts, is unchanged.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+### Patch Changes
+
+- bbd3a5c: A host's batch is admitted by one step, in one order (`now`, then key material or `maxAgeMs`, then the rows); every refusal is unchanged.
+
+  A refused batch no longer opens the `qadi.audit.verifySequenceIntegrity` span (a refused `verifySequenceIntegrity` opens none; a refused `archiveAuditTrail` opens only its own).
+
+  `planRetention` and `planPurge` read `maxAgeMs` once, and refuse a policy that is not an object as `MaxAgeInvalid` instead of throwing on `null` and `undefined`.
+
+  A `maxAgeMs` that is not a number (`null`, a boolean, a string, a list, a boxed number, an object with its own `valueOf`, a Symbol) is refused as `MaxAgeInvalid` with the value given, instead of being read as `0` (which selected every archived row for purge), converted through its `valueOf`, or thrown on.
+
+  Rows are read once: `archiveAuditTrail`, `verifySequenceIntegrity`, `planRetention` and `planPurge` judge the rows they checked, so a list that answers differently when read again can no longer make `archiveAuditTrail` return a bundle `readAuditArchive` refuses (INV-QD-399).
+
+  No export changes.
+
+- 2716def: `decodeAuditEntry` and `readAuditArchive` now decode a row or an archive entry whose record carries an unknown top-level key nested past the decode bound. It was `TooDeep`. With `version: 3` it is `UnsupportedVersion`. The row's and the archive's own unknown keys are still refused. This follows from `@qadi/core`'s record wire; see its entry.
+- 0f96ec5: `decodeAuditEntry` reads a row's record once, through `@qadi/core`'s strict decode, and the entry holds that decode's JSON form. Entries are identical to before over every existing case, including an unknown envelope key dropped and a record nested past the decode bound refused.
+- bbd3a5c: No export changes. The barrel names its exports per module; the sequence check is declared in the archive facts module.
+- 4451011: `AuditDecisionSinkLive` names itself, so a failure the core emitter reports says `AuditDecisionSinkLive`. Nothing else changes.
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [4451011]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+  - @qadi/core@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

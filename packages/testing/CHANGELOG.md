@@ -1,5 +1,35 @@
 # @qadi/testing
 
+## 0.13.0
+
+### Patch Changes
+
+- bbd3a5c: The `QadiReviewLayer.ts` doc comment says each port's fixture is the `fixture` member of its description, which `fixturePortsLayer` reads through `@qadi/core`'s `PORT_FIXTURES`. No export changes.
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [4451011]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+  - @qadi/core@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

@@ -1,5 +1,73 @@
 # @qadi/react
 
+## 0.13.0
+
+### Minor Changes
+
+- 4451011: **Breaking.** `useDevtoolsFeed().gates` is now the provider's gate registry (`GateRegistry`: the provider's `gates` prop, else `atoms.gates`), not the array of guard instances it was. `<DevtoolsDock {...feed} />` is unchanged, because the dock's `gates` prop takes the registry now. Code that read the array reads `feed.gates.instances()`.
+
+  No guard renders differently, and `useGateInstances` is unchanged for a component that wants the list itself. `GateRenderState` is now `@qadi/core`'s `GateState`, the same five words.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- ac7578f: **Breaking.** `QadiContextValue` no longer carries `instrument`. It is `atoms`, `registry` and `gates`. Nothing in `@qadi/react` read the field: whether a guard registers is decided by the writer the provider resolves once from its `instrument` prop, and that writer stays off the context. What breaks is code that reads `useQadiContext(...).instrument`, and code that builds a `QadiContextValue` by hand with an `instrument` key.
+
+  A component that wants to know whether its tree is instrumented reads the value its host passed to `QadiProvider`'s `instrument` prop, which is unchanged: pass the host's own flag to the component that needs it.
+
+  Toggling `instrument` no longer gives `useQadiContext` consumers a new context value, so a consumer that read only `atoms`, `registry` or `gates` does not render again when the flag flips. Guards still register and unregister as it toggles.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 2716def: **Breaking.** `useDevtoolsFeed()` returns `questions` (`atoms.asked`) beside `gates` and `onInvalidate`, and `diagnostics` is your extras plus `layer` only (`DevtoolsDiagnosticsFeed` is `{ layer }`). Code that read `feed.diagnostics.questions` reads `feed.questions`.
+
+  `<DevtoolsDock {...feed} />` is unchanged, and setting `layer` or `questions` in the extras is still a compile error.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 4451011: **Breaking.** `SeededAllow`'s `visibleFields` is now an optional key, as it is on the decision's wire form. A seed rebuilt from a payload that sent no `visibleFields` has no `visibleFields` key, where it held `visibleFields: undefined`. Reading `seed.visibleFields` is unchanged (`undefined` still means every field), and building a `SeededAllow` with or without the key compiles. What breaks is assigning a `SeededAllow` to a type that requires `visibleFields`, and code that checks for the key: `"visibleFields" in seed`, `Object.keys`, or `Equal.equals` against a seed built with an explicit `undefined`.
+
+  A seed's fields are now stated once, from `@qadi/core`'s decision wire form, so a field the wire gains reaches the seed with no edit in `@qadi/react`. The payload's version and bytes are unchanged.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+### Patch Changes
+
+- 0f96ec5: `PayloadRefusalReason` and `EntryDropReason` are now read off `@qadi/core`'s drop-reason table with `HydrationDropReasonOf` instead of being written out. Their members are unchanged, and a new per-entry reason in core does not compile until the engine has a bucket for it.
+- 5784bbd: Hydration's drop reports are now derived from where each dropped entry is collected, on both the hydrate and the dehydrate side, so a drop reason `@qadi/core`'s table gains no longer compiles in `@qadi/react` until it has a bucket, every bucket is reported and counted, and a whole-payload reason does not compile until what raises it is named (no type checks that code drops anything under a reason); the events a page sees, their order and their counts are unchanged.
+- bbd3a5c: The barrel names its exports per module. `hydrateDecisions` takes any value with a `hydrate` method of the same signature (`QadiAtoms` still satisfies it, and `QadiAtoms` states that method through it); no call site changes. No export is added or removed.
+- bbd3a5c: `QadiProvider`'s registry lifetime (building and seeding the registry, recording the latest committed atoms and subject, writing the subject, and the recycle) is kept by one internal module that imports no React, and the provider forwards each commit, hold and release to it. What a host renders and receives is unchanged. One edge differs: a host that calls `registry.refresh` on the subject atom, through `RegistryContext`, after the provider's first commit and before anything has read it or the registry has recycled (a window a rendered tree rarely leaves open), now keeps the current subject instead of resetting it to `undefined` (ADR-QD-199). No export changes.
+- ac7578f: A `QadiProvider` hidden by an `<Activity>` for longer than a macrotask and shown again no longer throws `registry is disposed`. The provider keeps one registry for its life and recycles it in place a macrotask after its last cleanup, unless it is shown again first, so a re-render while it is hidden no longer builds a second registry.
+
+  After such a hide, `initialValues` and the hydration seeds are not applied again: a gate renders pending and then the client's own answer, a seeded gate with no subject, or with a resolver that never answers, stays pending until the client answers, and a host atom passed in `initialValues` returns to its default. A subscription a host holds directly on the registry across the hide is detached by the recycle. No export changes.
+
+- 5784bbd: A supplied reporter that throws a value whose `message` or `toString` cannot be read no longer escapes its containment, and the developer signal names it as `a value that could not be described`; an `Error` whose `message` is not a string is named by its own string form, so no error is named twice; an ordinary error reads as before, `TypeError: host boom`.
+- 5784bbd: A reporter passed to `makeGateRegistry` as `onIdCollision` that throws is now announced under `onIdCollision`; it was announced as `onGateIdCollision`, the atom set's own option. Every developer signal's reporter is now resolved through one table that states where its default speaks, how often and the option each entry point reports it under, and nothing else a consumer sees changes.
+- 0f96ec5: A hydrated question's seed, the atom that computes its decision and the atom a guard reads now live together in one package-private module, `SeededQuestion.ts`, instead of being split across `HydrationEngine.ts` and `QadiAtoms.ts`. No export, render sequence or hydration behaviour changes.
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [4451011]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+  - @qadi/core@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

@@ -1,5 +1,135 @@
 # @qadi/devtools
 
+## 0.13.0
+
+### Minor Changes
+
+- ac7578f: **Breaking.** `Diagnostics` has no `questions` field. It is one reading of what the poll samples: `wiring`, `activity`, `hydration` and `portCalls`. The poll never sampled questions, so a reader of `reading.questions` on a sampled reading read `undefined`, and on `mergeReading`'s result read the list a supplied reading carried.
+
+  `DiagnosticsReading.questions` and the dock's Questions tab are unchanged: a list a reading supplies is still listed, and still wins over the dock's `questions` input. Code that read `questions` from a `Diagnostics`, including the reading the dock model's `diagnostics` readout holds, reads it from the `DiagnosticsReading` it supplied or from the dock model's `questions` store.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- ac7578f: **Breaking.** The feeds and the dock model take their inputs only through `configure`, and `configure` changes nothing when no input moved. Eight changes:
+
+  - `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` take no argument. A host that passed inputs builds the feed bare and calls `configure` with them; a bare feed is the feed built with `{}` (for the diagnostics feed, `undefined`, which is off), and `configure(inputs)` after it reaches what building with `inputs` reached.
+  - A `configure` in which no input moved changes nothing: it publishes nothing, restarts nothing and reads no host code, so a registry's `instances()`, a questions thunk and a source are each read only when their input moved. The dock is configured on every host commit and so reads nothing a host did not move.
+  - An omitted input and one holding `undefined` are one input, and a capacity is compared by the bound it means, so an omitted capacity and `DEFAULT_TIMELINE_CAPACITY` are equal.
+  - A failed gate-registry watch is retried by any `configure`. A registry that mends without announcing stays `Failed` until it announces, until a tick whose questions changed joins it, or until a `configure` moves an input; a `configure` that moves nothing does not read it, where any `configure` read it before.
+  - A reader subscribed to a feed or to the dock before its first `configure` hears that `configure`'s publishes, where a feed built with its inputs published nothing to anyone. A headless host configures a feed before it subscribes; `useTimeline`, `useDiagnostics` and `DevtoolsDock` configure before they publish, so a component sees none of them.
+  - `DiagnosticsOptions` accepts `undefined` for each of `layer`, `collector` and `intervalMillis`, so a host that forwards an optional value needs no conditional spread.
+  - `DevtoolsDockProps` is the dock model's eight inputs plus its two host props, `unknownParents` and `onInvalidate`, each accepting `undefined`; the dock's inputs are declared once and the hook's separate, package-private input type is deleted.
+  - `makeSimulationSession` and `useSimulationSession` are unchanged: the session has no `configure`, and its input is read once when it is built.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 2716def: **Breaking.** The root's headless interface is the three feeds, `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed`, each built in a scope. `makeTimelineStore`, `runSource`, `makeDiagnosticsStore`, `runDiagnostics`, `noDiagnostics` and the `DiagnosticsStore` type are no longer importable. `DiagnosticsDockOptions` is `DiagnosticsOptions` on both entries, it is not generic, and it takes `intervalMillis` where it took a `schedule`. A hand-fed timeline is `makeTimelineFeed()` and its `accept`. A stop's `reason` is a `Cause.pretty` trace and must not cross a trust boundary.
+
+  A shell without React now gets the stop detection the runners lacked: each feed states when it has stopped, with a restart, and the dock reads the same feeds. A `configure` on a feed whose scope has closed does nothing, on the timeline feed as on the other two.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 0f96ec5: **Breaking.** `sourceFromEventSource`'s `onMalformed(frame, refusal)` receives `@qadi/core`'s `DecodeRefusal` as decoded, not a word. Each word maps to a tag:
+
+  - `not-json` → `NotJson`
+  - `too-deep` → `TooDeep`
+  - `not-a-record` → `Malformed`
+  - `unsupported-version` → `UnsupportedVersion`
+  - `inconsistent` → `Inconsistent`
+
+  `not-a-record` named both a bare record and a record the wire does not describe; both are now `Malformed`. A bare record's `message` is the decoder's own, a missing `environment`, and a record the wire does not describe carries the record decoder's. Match on `refusal._tag`, or show `describeDecodeRefusal(refusal)`.
+
+  **Breaking.** `MalformedReason` is removed, with no alias. The default warning keeps its message, `qadi/devtools: a frame was not a decision record`, and is annotated `qadi.refusal` (the tag) instead of `qadi.reason`; a log query filtering on `qadi.reason` filters on `qadi.refusal` by tag.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 2716def: **Breaking.** `PortActivity.port` is now `PortName`, `@qadi/core`'s union of the registry's ports, not `string`. `portActivity` reads one entry per registry port, so a word written to a port metric outside the registry is no longer reported, and a misspelt port is a compile error.
+
+  The Services panel's cards are now computed by the dock model, and every word, `data-testid` and attribute on the tab is unchanged.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 2716def: **Breaking.** `questions` is no longer a field of `DiagnosticsDockOptions` (the dock's `diagnostics` prop and `useDiagnostics`) or of `DiagnosticsOptions` (`runDiagnostics`). It is `DevtoolsDock`'s own `questions` prop, beside `gates`, read on the diagnostics cadence. A host that wrote `diagnostics={{ …, questions }}` writes `questions={…}`.
+
+  A questions input that throws is now stated in the React panel ("The questions handed to the dock threw, so what has been asked cannot be shown: …") and the diagnostics poll keeps running, where before it stopped and every tab's reading froze. `DiagnosticsReading.questions`, for a reading taken elsewhere, is unchanged. With `@qadi/react`'s feed, `<DevtoolsDock {...feed} />` needs no edit.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 2716def: **Breaking.** `ingest(timeline, stored)` takes `@qadi/core`'s `StoredRecord` envelope, and a `Source`'s backlog and live stream carry envelopes, so code that built a flat record for them builds `new StoredRecord({ environment, record })` instead. The timeline's rows and `entryKey` are unchanged.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- ac7578f: **Breaking.** A timeline store owns its capacity, so the store a host holds is the one the read feeds, and a refused capacity changes nothing. Eight changes:
+
+  - `TimelineStore` gains the required `resize(capacity): boolean`, so an object a host writes as a `TimelineStore`, a test double or a wrapper, needs one. It answers `false` and changes nothing for the capacity the store already holds, throws before anything moves for a capacity the timeline refuses, and for any other capacity empties the timeline at the new bound, releases a pause, publishes once and answers `true`.
+  - `feed.timeline` is the feed's one store for the feed's life, and a capacity change is that store's `resize`. A subscription on `feed.timeline` survives a capacity change and hears the emptied timeline, where the feed handed out a forwarder over a store it replaced.
+  - An omitted capacity and `DEFAULT_TIMELINE_CAPACITY` are one bound, so moving between them keeps the timeline and reads nothing again.
+  - A capacity the timeline refuses (a negative number, a fraction, `NaN`, an infinity, a string or a bigint) throws from `configure` before the inputs, the timeline or the read move, so a later `configure` compares with the inputs the feed held and a `restart` reads the source the feed held.
+  - The dock applies a `capacity` whole or not at all. A refused one throws before any other input moves, and what a timeline listener throws on a capacity change is rethrown once the catalogue, roles, ports, gates, diagnostics and shown reading are applied.
+  - A zero-capacity timeline returns the identical timeline for a record it cannot keep, so its store notifies no subscriber and the feed tells its timeline listeners nothing for it.
+  - `useTimelineStore` follows a changed `capacity`: it empties the same store at the new bound, releases a pause and keeps the store, and a re-render with the same capacity keeps its entries.
+  - `clear` empties the store at the capacity it holds, which is the one it was last resized to.
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+- 4451011: **Breaking.** `DevtoolsDock`'s `gates` prop takes the gate registry (`GateRegistryLike`: `instances()` and `subscribe()`), usually `atoms.gates` or the feed's `gates`, where it took an array of instances. An array no longer compiles. The dock subscribes to the registry in its own scope for as long as it is mounted, and pairs each asked question with the guards asking it at one moment, so a host no longer re-renders to feed the dock.
+
+  `GateRegistryLike` is a new type export. The React panel's message for a missing registry now names `atoms.gates`: "Pass gates — usually atoms.gates, from @qadi/react — to list who is asking."
+
+  See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+
+### Patch Changes
+
+- 2716def: A listener that throws on the emptied timeline a `configure` with a new `capacity` publishes no longer stops the timeline being refilled: the read starts, from the same source or a new one, and what the listener threw is rethrown once the read has started. If the timeline was `Stopped` and a status listener also throws on the `Reading` that read publishes, that throw escapes instead, replaces the timeline listener's, and no read is started.
+- 5784bbd: A capture keeps a broken port's own text, the cause it reported or, for a custom predicate, its reason, so a failing custom predicate is captured and replayed with its reason where it carried the predicate's name; a failure with no text of its own is captured with an empty message, not its error's tag; a cause that cannot be described is captured with `a value that could not be described` (it was captured as nothing, or as the old angle-bracketed words). The timeline and diagnostics feeds, the diagnostics wiring read and the policy explorer render a run's cause with `causeMessage`, so a run that dies with a value that cannot be rendered is stated as stopped or failed with those words instead of leaving the panel on its last reading, and the explorer shows those words instead of throwing; a throw the gates feed cannot render reads as those words, not a sentence of its own.
+- ac7578f: The dock applies every input whatever a host listener on any of its stores throws, on `configure` and on each record the timeline accepts (a throw a listener makes on a record still ends the read that handed it over, and the timeline status says `Stopped`): the timeline, the sightings rail, the roles, the simulation's ports, the gates, the diagnostics and the shown reading are each applied, and what the listeners threw is rethrown after the last step, one value as itself and several as one `AggregateError` in step order, where a step whose own listeners threw more than once contributes one nested `AggregateError`, never flattened. A listener that throws on a status that announces work no longer keeps the work from starting: the timeline read, the diagnostics poll and the simulation run start, and the throw is rethrown once they have. The timeline feed's `configure` with a new `capacity` rethrows a timeline listener's throw and a status listener's throw on the `Reading` as one `AggregateError`, the timeline's first, where a status throw used to replace the timeline listener's and leave no read started. No export changes.
+- 4451011: The wiring report and the services panel read whether a port is defaulted from `@qadi/core`'s `isPortDefault`, not from the port's name. A wrapper that spreads a default now reads defaulted whatever it is called, and one that builds a fresh object reads as a real adapter even when its name starts with a default's. The panel's wording is unchanged.
+- 2716def: A feed listener that throws no longer stops the others: every listener is called, and then what they threw is rethrown, one value as itself and several as one `AggregateError`.
+- ac7578f: The React panel's highlight lens behaves differently in seven ways. No export changes: the lens session and the panel's props are package-private.
+
+  - A pick is kept when the reader leaves the React panel and comes back. Its row is marked again on the return, with no second scroll, where the pick was forgotten on every tab round trip.
+  - A picked row scrolls into view once per pick, when the pick is made, and not again when the panel remounts or its guards change.
+  - Pressing a question's highlight while picking ends picking and draws that question's guards, where picking stayed on with the highlight drawn.
+  - A pointer moving inside the guard already drawn redraws nothing, where each move drew the same overlay again.
+  - A click made from the keyboard while picking is placed by the control it was made on, where it was placed by its coordinates, which a browser may report as the page's corner.
+  - A reveal not yet taken is dropped when the reader leaves the panel, starts picking again or presses a highlight, where it waited and scrolled the row into view whenever the row next appeared.
+  - The document listeners for the pick are added once per picking session, where they were removed and added again whenever the listed guards changed.
+
+  Leaving the panel still ends picking and clears the highlight.
+
+- ac7578f: The React panel's highlight lens reads the listed guards from one subscription to the questions store and from the store itself when an event arrives, where the panel read the store and handed the guards to the lens a second time. The dock's two stop notices, the lens session and the dock's internal hand-over of inputs each state their rule once. Nothing a host renders, receives or calls changes. No export changes.
+- bbd3a5c: No export changes. The headers of both entry points say what adding a public name takes: a value is listed in `test/surface.test.ts`, a type in `test/surface.tst.ts`.
+- bbd3a5c: The Simulator's broken-run message is the text the timeline and diagnostics feeds give for a stop (the first line of a defect is the error itself, a value that cannot be described reads as `a value that could not be described`), shown as a scrolling preformatted block like the stopped box's reason, where it was a `Cause(...)` wrapper in a plain line. A timeline read, a live stream or a diagnostics collector whose own work interrupts itself reads stopped, where it showed reading, starting or live with nothing running; an interruption from outside (a newer start, a stop, the scope closing) still never stops a feed. A simulation run that fails outside its own result read, and used to stay running with nothing running, reads broken. No export changes.
+- 5784bbd: The remedy table asks core whether a fixture signature or event meets the leaf. An `Any`-scope event remedy is offered only where the leaf does not already hold and skipped only where no row could be built, and a check the signature or history port refuses is skipped with its refusal rather than offered a row, and a row, subject or resource that cannot be read is skipped with what was thrown, where it had thrown out of the sweep. Nothing else on screen changes.
+- 0f96ec5: The simulator's remedy table and its session commands (`choosePolicy`, `edit`), the policy rail and the inspector no longer throw when a policy compares an attribute with a bigint or a circular value. Such a remedy is still offered, labelled with the bigint's digits and `n` (`10n`) or, for a value with no JSON form, with the words `a value with no JSON form`, which carry none of the value. An object whose `toJSON` gives nothing, labelled `undefined` before, now takes those words. The remedy label reads through `@qadi/core`'s `valueLabel`, and the search text and the simulator form through its `valueText`.
+- bbd3a5c: A stop notice's box derives its own key and records the announced stop through state its dock holds for each feed; the announced alert is unchanged. No export changes.
+- bbd3a5c: The dock's hydration block is decided by the dock model, as the Services tab's port cards are: which of its three states it shows, the re-check rate sentence, the raised drops and the scope sentence are one view the model serves, and the panel renders what it is given. The dock's frame follows the poll's status alone, so a poll that moved only the counts no longer re-renders it. Nothing a host renders, receives or calls changes. No export changes.
+- 0f96ec5: The simulator session, the timeline feed and the diagnostics feed now run through one internal module, so a restart issued from inside a feed's own notification, or from a run's synchronous start, leaves the newest run live where before it could leave the feed or the session idle with a stale run behind it. A stop with no run in flight does nothing a host can see. No exported name, type or behaviour otherwise changes, so no code needs to change.
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [4451011]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [bbd3a5c]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [5784bbd]
+- Updated dependencies [2716def]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+- Updated dependencies [4451011]
+- Updated dependencies [2716def]
+- Updated dependencies [2716def]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [4451011]
+- Updated dependencies [0f96ec5]
+  - @qadi/core@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes
