@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 420" width="1000" height="420" role="img" aria-labelledby="t d" style="--still:-3.6s">
+  <title id="t">React: decisions live in atoms, and a stale allow is never shown</title>
+  <desc id="d">The server evaluates and dehydrates decisions into the page; the client hydrates them into one atom per question, shared by every gate asking it. The Publish button shows while Allowed. When the grant is revoked the decision is re-checked and nothing renders while Rechecking; then Denied shows the fallback.</desc>
+  <style>
+    svg{--card:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--text:#1f2328;--muted:#59636e;--acc:#0b7f8c;--accs:#e3f5f7;--ok:#1a7f37;--oks:#e6f6ea;--no:#cf222e;--nos:#fdecec;--warn:#9a6700;--warns:#fcf4d6}
+    @media (prefers-color-scheme:dark){svg{--card:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#9198a1;--acc:#39c5d1;--accs:#0e2a2e;--ok:#3fb950;--oks:#10261a;--no:#f85149;--nos:#2c1517;--warn:#d29922;--warns:#2a2011}}
+    text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .mono,.mono text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .m,.m text{fill:var(--muted)} .a,.a text{fill:var(--acc)} .g,.g text{fill:var(--ok)} .r,.r text{fill:var(--no)} .b{font-weight:600}
+    .card{fill:var(--card);stroke:var(--line)} .box{fill:var(--panel);stroke:var(--line)}
+    .panel{fill:none;stroke:var(--line);stroke-dasharray:5 5}
+    .arrow{fill:none;stroke:var(--line);stroke-width:1.5}
+    .flow{fill:none;stroke:var(--acc);stroke-width:1.6;stroke-dasharray:4 8;animation:flow 1.1s linear infinite}
+    @keyframes flow{to{stroke-dashoffset:-12}}
+    .k{animation-duration:12s;animation-iteration-count:infinite;animation-timing-function:linear}
+    .seed{animation-name:seed} .pend{animation-name:pend} .alw{animation-name:alw} .rec{animation-name:rec} .den{animation-name:den} .rev{animation-name:rev} .atom{animation-name:atom}
+    @keyframes seed{0%{opacity:0;transform:translateX(0)}3%{opacity:1}12%{opacity:1;transform:translateX(70px)}15%,100%{opacity:0;transform:translateX(70px)}}
+    @keyframes pend{0%,1%{opacity:0}2%,12%{opacity:1}14%,100%{opacity:0}}
+    @keyframes alw{0%,13%{opacity:0}15%,50%{opacity:1}52%,100%{opacity:0}}
+    @keyframes rec{0%,51%{opacity:0}53%,65%{opacity:1}67%,100%{opacity:0}}
+    @keyframes den{0%,66%{opacity:0}68%,96%{opacity:1}99%,100%{opacity:0}}
+    @keyframes rev{0%,48%{opacity:0}50%,62%{opacity:1}66%,100%{opacity:0}}
+    @keyframes atom{0%,13%{opacity:0}15%{opacity:.9}24%{opacity:0}52%{opacity:0}54%{opacity:.9}63%,100%{opacity:0}}
+    @media (prefers-reduced-motion:reduce){*{animation-play-state:paused!important;animation-delay:var(--still)!important}}
+  </style>
+
+  <rect class="card" x="0.5" y="0.5" width="999" height="419" rx="18"/>
+
+  <!-- server -->
+  <rect class="panel" x="24" y="40" width="270" height="282" rx="14"/>
+  <text x="40" y="64" font-size="12.5" class="m b">server</text>
+  <g class="mono" font-size="12.5">
+    <rect class="box" x="44" y="80" width="230" height="44" rx="10"/><text x="159" y="107" text-anchor="middle">evaluate</text>
+    <path class="arrow" d="M159 124 V148"/>
+    <rect class="box" x="44" y="148" width="230" height="44" rx="10"/><text x="159" y="175" text-anchor="middle" class="a">dehydrateDecisions</text>
+    <path class="arrow" d="M159 192 V216"/>
+    <rect class="box" x="44" y="216" width="230" height="44" rx="10"/><text x="159" y="243" text-anchor="middle">HTML + seed</text>
+  </g>
+  <text x="44" y="290" font-size="11.5" class="m">works from a React Server Component;</text>
+  <text x="44" y="306" font-size="11.5" class="m">the seed is bound to one subject</text>
+
+  <path class="flow" d="M274 238 H360"/>
+  <rect class="k seed" x="270" y="230" width="22" height="16" rx="4" fill="var(--accs)" stroke="var(--acc)"/>
+
+  <!-- client -->
+  <rect class="panel" x="360" y="40" width="300" height="282" rx="14"/>
+  <text x="376" y="64" font-size="12.5" class="m b">client</text>
+  <g class="mono" font-size="12.5">
+    <rect class="box" x="380" y="216" width="260" height="44" rx="10"/><text x="510" y="243" text-anchor="middle" class="a">hydrateDecisions</text>
+    <path class="arrow" d="M510 216 V190"/>
+    <circle class="k atom" cx="510" cy="160" r="38" fill="none" stroke="var(--acc)" stroke-width="2"/>
+    <circle class="box" cx="510" cy="160" r="30"/>
+    <text x="510" y="164" text-anchor="middle" font-size="12">atom</text>
+    <path class="arrow" d="M482 148 C440 130 430 110 420 100"/>
+    <path class="arrow" d="M510 130 V108"/>
+    <path class="arrow" d="M538 148 C580 130 590 110 600 100"/>
+    <rect class="box" x="380" y="76" width="80" height="26" rx="8"/><text x="420" y="94" text-anchor="middle" font-size="11.5">&lt;Can&gt;</text>
+    <rect class="box" x="470" y="76" width="80" height="26" rx="8"/><text x="510" y="94" text-anchor="middle" font-size="11.5">&lt;Can&gt;</text>
+    <rect class="box" x="560" y="76" width="90" height="26" rx="8"/><text x="605" y="94" text-anchor="middle" font-size="11">useDecision</text>
+  </g>
+  <text x="510" y="290" font-size="11.5" text-anchor="middle" class="m">equal policies share one atom —</text>
+  <text x="510" y="306" font-size="11.5" text-anchor="middle" class="m">three gates, one evaluation</text>
+
+  <path class="arrow" d="M660 160 H700"/>
+
+  <!-- outcomes -->
+  <rect class="box" x="700" y="40" width="276" height="282" rx="14"/>
+  <text x="716" y="64" font-size="12.5" class="m b">outcomeOf(decision)</text>
+  <g class="mono" font-size="12">
+    <rect x="716" y="78" width="96" height="24" rx="12" fill="none" stroke="var(--line)"/><text x="764" y="94" text-anchor="middle" class="m">Pending</text>
+    <rect x="820" y="78" width="96" height="24" rx="12" fill="none" stroke="var(--line)"/><text x="868" y="94" text-anchor="middle" class="m">Allowed</text>
+    <rect x="716" y="110" width="96" height="24" rx="12" fill="none" stroke="var(--line)"/><text x="764" y="126" text-anchor="middle" class="m">Rechecking</text>
+    <rect x="820" y="110" width="96" height="24" rx="12" fill="none" stroke="var(--line)"/><text x="868" y="126" text-anchor="middle" class="m">Denied</text>
+    <rect x="716" y="142" width="96" height="24" rx="12" fill="none" stroke="var(--line)"/><text x="764" y="158" text-anchor="middle" class="m">Failed</text>
+
+    <g class="k pend"><rect x="716" y="78" width="96" height="24" rx="12" fill="var(--accs)" stroke="var(--acc)"/><text x="764" y="94" text-anchor="middle" class="a">Pending</text></g>
+    <g class="k alw"><rect x="820" y="78" width="96" height="24" rx="12" fill="var(--oks)" stroke="var(--ok)"/><text x="868" y="94" text-anchor="middle" class="g">Allowed</text></g>
+    <g class="k rec"><rect x="716" y="110" width="96" height="24" rx="12" fill="var(--warns)" stroke="var(--warn)"/><text x="764" y="126" text-anchor="middle" style="fill:var(--warn)">Rechecking</text></g>
+    <g class="k den"><rect x="820" y="110" width="96" height="24" rx="12" fill="var(--nos)" stroke="var(--no)"/><text x="868" y="126" text-anchor="middle" class="r">Denied</text></g>
+  </g>
+  <text class="k rev mono" x="826" y="158" font-size="11.5" style="fill:var(--warn)">grant revoked</text>
+
+  <text x="716" y="196" font-size="11.5" class="m">what renders</text>
+  <rect x="716" y="206" width="244" height="92" rx="10" fill="var(--card)" stroke="var(--line)"/>
+  <g class="k alw"><rect x="788" y="234" width="100" height="34" rx="8" fill="var(--acc)"/><text x="838" y="256" text-anchor="middle" font-size="13" style="fill:var(--card)" class="b">Publish</text></g>
+  <text class="k rec" x="838" y="256" text-anchor="middle" font-size="12" font-style="italic" style="fill:var(--muted)">nothing — not the old allow</text>
+  <text class="k den" x="838" y="256" text-anchor="middle" font-size="12.5" style="fill:var(--muted)">Publishing disabled</text>
+  <text class="k pend" x="838" y="256" text-anchor="middle" font-size="12" font-style="italic" style="fill:var(--muted)">seed arriving…</text>
+
+  <text x="500" y="364" font-size="13.5" text-anchor="middle">Only <tspan class="mono">Allowed</tspan> carries an allow. While a decision is re-checked, nothing renders.</text>
+  <text x="500" y="388" font-size="12.5" text-anchor="middle" class="m">For most data a stale value is a feature. For authorization it is an over-permission, however brief.</text>
+</svg>

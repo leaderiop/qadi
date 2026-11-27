@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 230" width="1000" height="230" role="img" aria-labelledby="t d" style="--still:-1.3s">
+  <title id="t">One policy language, many access-control models</title>
+  <desc id="d">Built in: RBAC, ABAC, ReBAC, field-level, row-level, Bell–LaPadula, Biba, MLS, Chinese Wall, separation of duty, rule-based (XACML-style), task-based, NGAC. A resolver away: Zanzibar or OpenFGA, ACL, DAC, claims (OIDC), temporal, spatial, risk-adaptive, purpose, consent.</desc>
+  <style>
+    svg{--card:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--text:#1f2328;--muted:#59636e;--acc:#0b7f8c;--accs:#e3f5f7}
+    @media (prefers-color-scheme:dark){svg{--card:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#9198a1;--acc:#39c5d1;--accs:#0e2a2e}}
+    text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .mono,.mono text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .m,.m text{fill:var(--muted)} .b{font-weight:600}
+    .card{fill:var(--card);stroke:var(--line)}
+    .in rect{fill:var(--accs);stroke:var(--acc)} .in text{fill:var(--acc)}
+    .wr rect{fill:none;stroke:var(--muted);stroke-dasharray:4 3} .wr text{fill:var(--muted)}
+    .c{animation:glow 6s ease-in-out infinite}
+    @keyframes glow{0%,12%,100%{opacity:.6}6%{opacity:1}}
+    .in.c{animation-name:glowIn}
+    @keyframes glowIn{0%,12%,100%{opacity:.75}6%{opacity:1}}
+    @media (prefers-reduced-motion:reduce){*{animation-play-state:paused!important;animation-delay:var(--still)!important}}
+  </style>
+
+  <rect class="card" x="0.5" y="0.5" width="999" height="229" rx="18"/>
+  <text x="24" y="40" font-size="16" class="b">One policy language, many access-control models</text>
+
+  <g class="mono" font-size="12.5" text-anchor="middle">
+    <g class="in c" style="animation-delay:0s"><rect x="24" y="62" width="54" height="30" rx="15"/><text x="51" y="82">RBAC</text></g>
+    <g class="in c" style="animation-delay:-5.8s"><rect x="88" y="62" width="54" height="30" rx="15"/><text x="115" y="82">ABAC</text></g>
+    <g class="in c" style="animation-delay:-5.6s"><rect x="152" y="62" width="62" height="30" rx="15"/><text x="183" y="82">ReBAC</text></g>
+    <g class="in c" style="animation-delay:-5.4s"><rect x="224" y="62" width="107" height="30" rx="15"/><text x="277.5" y="82">Field-level</text></g>
+    <g class="in c" style="animation-delay:-5.2s"><rect x="341" y="62" width="92" height="30" rx="15"/><text x="387" y="82">Row-level</text></g>
+    <g class="in c" style="animation-delay:-5s"><rect x="443" y="62" width="122" height="30" rx="15"/><text x="504" y="82">Bell–LaPadula</text></g>
+    <g class="in c" style="animation-delay:-4.8s"><rect x="575" y="62" width="54" height="30" rx="15"/><text x="602" y="82">Biba</text></g>
+    <g class="in c" style="animation-delay:-4.6s"><rect x="639" y="62" width="46" height="30" rx="15"/><text x="662" y="82">MLS</text></g>
+    <g class="in c" style="animation-delay:-4.4s"><rect x="695" y="62" width="114" height="30" rx="15"/><text x="752" y="82">Chinese Wall</text></g>
+
+    <g class="in c" style="animation-delay:-4.2s"><rect x="24" y="104" width="159" height="30" rx="15"/><text x="103.5" y="124">Separation of duty</text></g>
+    <g class="in c" style="animation-delay:-4s"><rect x="193" y="104" width="159" height="30" rx="15"/><text x="272.5" y="124">Rules, XACML-style</text></g>
+    <g class="in c" style="animation-delay:-3.8s"><rect x="362" y="104" width="99" height="30" rx="15"/><text x="411.5" y="124">Task-based</text></g>
+    <g class="in c" style="animation-delay:-3.6s"><rect x="471" y="104" width="54" height="30" rx="15"/><text x="498" y="124">NGAC</text></g>
+    <g class="wr c" style="animation-delay:-3.4s"><rect x="535" y="104" width="152" height="30" rx="15"/><text x="611" y="124">Zanzibar / OpenFGA</text></g>
+    <g class="wr c" style="animation-delay:-3.2s"><rect x="697" y="104" width="46" height="30" rx="15"/><text x="720" y="124">ACL</text></g>
+    <g class="wr c" style="animation-delay:-3s"><rect x="753" y="104" width="46" height="30" rx="15"/><text x="776" y="124">DAC</text></g>
+    <g class="wr c" style="animation-delay:-2.8s"><rect x="809" y="104" width="122" height="30" rx="15"/><text x="870" y="124">Claims / OIDC</text></g>
+
+    <g class="wr c" style="animation-delay:-2.6s"><rect x="24" y="146" width="84" height="30" rx="15"/><text x="66" y="166">Temporal</text></g>
+    <g class="wr c" style="animation-delay:-2.4s"><rect x="118" y="146" width="77" height="30" rx="15"/><text x="156.5" y="166">Spatial</text></g>
+    <g class="wr c" style="animation-delay:-2.2s"><rect x="205" y="146" width="122" height="30" rx="15"/><text x="266" y="166">Risk-adaptive</text></g>
+    <g class="wr c" style="animation-delay:-2s"><rect x="337" y="146" width="77" height="30" rx="15"/><text x="375.5" y="166">Purpose</text></g>
+    <g class="wr c" style="animation-delay:-1.8s"><rect x="424" y="146" width="77" height="30" rx="15"/><text x="462.5" y="166">Consent</text></g>
+  </g>
+
+  <g font-size="12">
+    <g class="in"><rect x="640" y="152" width="26" height="18" rx="9"/></g><text x="674" y="165" class="m">built in</text>
+    <g class="wr"><rect x="760" y="152" width="26" height="18" rx="9"/></g><text x="794" y="165" class="m">a resolver away</text>
+  </g>
+  <text x="24" y="210" font-size="12" class="m">Each model, its mapping and its evidence: spec/models/00-adoption-matrix.md. What is declined is declined there too, with the reason.</text>
+</svg>

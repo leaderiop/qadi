@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 410" width="1000" height="410" role="img" aria-labelledby="t d" style="--still:-7s">
+  <title id="t">Push the policy into the query</title>
+  <desc id="d">Filtering in memory loads every row and throws most away. Pushed down, toPredicate turns the policy into a dialect-free Predicate, folding the subject side to a constant, and compileSql renders WHERE "tenantId" = $1 with params ["t-1"], so the database returns only the rows the subject may see.</desc>
+  <style>
+    svg{--card:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--text:#1f2328;--muted:#59636e;--acc:#0b7f8c;--accs:#e3f5f7;--ok:#1a7f37;--oks:#e6f6ea;--no:#cf222e;--nos:#fdecec}
+    @media (prefers-color-scheme:dark){svg{--card:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#9198a1;--acc:#39c5d1;--accs:#0e2a2e;--ok:#3fb950;--oks:#10261a;--no:#f85149;--nos:#2c1517}}
+    text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .mono,.mono text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .m,.m text{fill:var(--muted)} .a,.a text{fill:var(--acc)} .g,.g text{fill:var(--ok)} .b{font-weight:600}
+    .card{fill:var(--card);stroke:var(--line)} .box{fill:var(--panel);stroke:var(--line)}
+    .hl{fill:var(--accs);stroke:var(--acc);stroke-width:2}
+    .arrow{fill:none;stroke:var(--line);stroke-width:1.5}
+    .db{fill:var(--panel);stroke:var(--line)}
+    .k{animation-duration:10s;animation-iteration-count:infinite;animation-timing-function:linear}
+    .b1{animation-name:b1} .b2{animation-name:b2} .b3{animation-name:b3} .b4{animation-name:b4} .b5{animation-name:b5}
+    @keyframes b1{0%,3%{opacity:0}5%,92%{opacity:1}96%,100%{opacity:0}}
+    @keyframes b2{0%,18%{opacity:0}20%,92%{opacity:1}96%,100%{opacity:0}}
+    @keyframes b3{0%,33%{opacity:0}35%,92%{opacity:1}96%,100%{opacity:0}}
+    @keyframes b4{0%,48%{opacity:0}50%,92%{opacity:1}96%,100%{opacity:0}}
+    @keyframes b5{0%,60%{opacity:0}62%,92%{opacity:1}96%,100%{opacity:0}}
+    .dot{fill:var(--muted);animation:dot 3s linear infinite}
+    .keep{fill:var(--ok);animation:keep 3s linear infinite}
+    @keyframes dot{0%{opacity:0;transform:translateX(0)}8%{opacity:.9}70%{opacity:.9;transform:translateX(330px)}82%,100%{opacity:0;transform:translateX(360px)}}
+    @keyframes keep{0%{opacity:0;transform:translateX(0)}8%{opacity:1}100%{opacity:1;transform:translateX(500px)}}
+    @media (prefers-reduced-motion:reduce){*{animation-play-state:paused!important;animation-delay:var(--still)!important}}
+  </style>
+
+  <rect class="card" x="0.5" y="0.5" width="999" height="409" rx="18"/>
+
+  <!-- lane 1: in memory -->
+  <text x="24" y="34" font-size="13" class="m b">filter in memory</text>
+  <g opacity=".85">
+    <circle class="dot" cx="110" cy="90" r="3.5" style="animation-delay:0s"/>
+    <circle class="dot" cx="110" cy="90" r="3.5" style="animation-delay:-.5s"/>
+    <circle class="dot" cx="110" cy="90" r="3.5" style="animation-delay:-1s"/>
+    <circle class="dot" cx="110" cy="90" r="3.5" style="animation-delay:-1.5s"/>
+    <circle class="dot" cx="110" cy="90" r="3.5" style="animation-delay:-2s"/>
+    <circle class="keep" cx="110" cy="90" r="3.5" style="animation-delay:-2.5s"/>
+    <path class="db" d="M44 70 v40 a26 9 0 0 0 52 0 v-40"/><ellipse class="db" cx="70" cy="70" rx="26" ry="9"/>
+    <path class="arrow" d="M100 90 H150"/>
+    <rect class="box" x="150" y="66" width="180" height="48" rx="10"/>
+    <text x="240" y="95" font-size="13" text-anchor="middle">load every row</text>
+    <path class="arrow" d="M330 90 H390"/>
+    <rect class="box" x="390" y="66" width="150" height="48" rx="10"/>
+    <text x="465" y="95" font-size="13" text-anchor="middle">filter in JS</text>
+    <path class="arrow" d="M540 90 H600"/>
+    <rect class="box" x="600" y="66" width="110" height="48" rx="10"/>
+    <text x="655" y="95" font-size="13" text-anchor="middle">12 rows</text>
+  </g>
+  <text x="736" y="86" font-size="12.5" class="m">10,000 rows cross the wire</text>
+  <text x="736" y="104" font-size="12.5" class="m">to keep 12.</text>
+
+  <path d="M24 146 H976" stroke="var(--line)" stroke-dasharray="3 5"/>
+
+  <!-- lane 2: pushed down -->
+  <text x="24" y="180" font-size="13" class="a b">push the policy down</text>
+  <g class="mono" font-size="11">
+    <text x="259" y="212" text-anchor="middle" class="a">toPredicate</text>
+    <text x="499" y="212" text-anchor="middle" class="a">compileSql</text>
+  </g>
+
+  <rect class="box" x="24" y="222" width="210" height="76" rx="10"/><rect class="hl k b1" x="24" y="222" width="210" height="76" rx="10"/>
+  <g class="mono" font-size="11.5">
+    <text x="38" y="245">hasResourceAttribute(</text>
+    <text x="52" y="263">"tenantId",</text>
+    <text x="52" y="281">eq(subject("tenantId")))</text>
+  </g>
+  <path class="arrow" d="M234 260 H284"/>
+
+  <rect class="box" x="284" y="222" width="190" height="76" rx="10"/><rect class="hl k b2" x="284" y="222" width="190" height="76" rx="10"/>
+  <text class="mono b" x="300" y="250" font-size="12.5">Compare</text>
+  <text class="mono" x="300" y="272" font-size="12.5">tenantId = "t-1"</text>
+  <text x="379" y="318" font-size="11.5" text-anchor="middle" class="m">subject side folded to a constant</text>
+  <path class="arrow" d="M474 260 H524"/>
+
+  <rect class="box" x="524" y="222" width="220" height="76" rx="10"/><rect class="hl k b3" x="524" y="222" width="220" height="76" rx="10"/>
+  <text class="mono" x="540" y="252" font-size="12.5">WHERE "tenantId" = $1</text>
+  <text class="mono m" x="540" y="274" font-size="12">params: ["t-1"]</text>
+  <path class="arrow" d="M744 260 H784"/>
+
+  <path class="db" d="M786 242 v36 a26 9 0 0 0 52 0 v-36"/><ellipse class="db" cx="812" cy="242" rx="26" ry="9"/>
+  <g class="k b4"><path d="M786 242 v36 a26 9 0 0 0 52 0 v-36" fill="var(--accs)" stroke="var(--acc)" stroke-width="2"/><ellipse cx="812" cy="242" rx="26" ry="9" fill="var(--accs)" stroke="var(--acc)" stroke-width="2"/></g>
+  <path class="arrow" d="M838 260 H866"/>
+
+  <rect class="box" x="866" y="236" width="110" height="48" rx="10"/>
+  <g class="k b5"><rect x="866" y="236" width="110" height="48" rx="10" fill="var(--oks)" stroke="var(--ok)" stroke-width="2"/></g>
+  <text x="921" y="265" font-size="13" text-anchor="middle">12 rows</text>
+
+  <text x="500" y="364" font-size="13" text-anchor="middle">A policy that folds to <tspan class="mono">False</tspan> means: don't run the query at all.</text>
+  <text x="500" y="388" font-size="12.5" text-anchor="middle" class="m">PostgreSQL, MySQL, SQLite (@qadi/predicate-sql) or a Prisma WhereInput (@qadi/predicate-prisma), property-checked against the evaluator.</text>
+</svg>

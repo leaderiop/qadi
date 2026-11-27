@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 290" width="1000" height="290" role="img" aria-labelledby="t d" style="--still:-5.2s">
+  <title id="t">Qadi — Effect-native authorization for TypeScript</title>
+  <desc id="d">Three access requests flow into Qadi's evaluator, which judges each one: alice may read the document and sees only some fields, bob may not delete it, dana may pay the invoice under an obligation.</desc>
+  <style>
+    svg{--card:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--text:#1f2328;--muted:#59636e;--acc:#0b7f8c;--accs:#e3f5f7;--ok:#1a7f37;--oks:#e6f6ea;--no:#cf222e;--nos:#fdecec}
+    @media (prefers-color-scheme:dark){svg{--card:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#9198a1;--acc:#39c5d1;--accs:#0e2a2e;--ok:#3fb950;--oks:#10261a;--no:#f85149;--nos:#2c1517}}
+    text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .mono,.mono text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .serif,.serif text{font-family:Marcellus,Georgia,"Times New Roman",serif}
+    .m,.m text{fill:var(--muted)} .a,.a text{fill:var(--acc)}
+    .card{fill:var(--card);stroke:var(--line)} .box{fill:var(--panel);stroke:var(--line)}
+    .chip{fill:var(--accs);stroke:var(--acc);stroke-opacity:.45}
+    .flow{fill:none;stroke:var(--acc);stroke-width:1.6;stroke-dasharray:4 8;animation:flow 1.1s linear infinite}
+    @keyframes flow{to{stroke-dashoffset:-12}}
+    .fb{transform-box:fill-box;transform-origin:center}
+    .pill rect{fill:var(--card);stroke:var(--acc)}
+    .ok rect{fill:var(--oks);stroke:var(--ok)} .ok text{fill:var(--ok)}
+    .no rect{fill:var(--nos);stroke:var(--no)} .no text{fill:var(--no)}
+    .r1{animation:r1 9s linear infinite} .r2{animation:r2 9s linear infinite} .r3{animation:r3 9s linear infinite}
+    .o1{animation:o1 9s ease-out infinite} .o2{animation:o2 9s ease-out infinite} .o3{animation:o3 9s ease-out infinite}
+    .ping{fill:none;stroke:var(--acc);stroke-width:2;animation:ping 9s ease-out infinite}
+    @keyframes r1{0%{opacity:0;transform:translateX(0)}3%{opacity:1}17%{opacity:1;transform:translateX(110px)}21%,100%{opacity:0;transform:translateX(130px)}}
+    @keyframes r2{0%,33.3%{opacity:0;transform:translateX(0)}36.3%{opacity:1}50.3%{opacity:1;transform:translateX(110px)}54.3%,100%{opacity:0;transform:translateX(130px)}}
+    @keyframes r3{0%,66.6%{opacity:0;transform:translateX(0)}69.6%{opacity:1}83.6%{opacity:1;transform:translateX(110px)}87.6%,100%{opacity:0;transform:translateX(130px)}}
+    @keyframes o1{0%,19%{opacity:0;transform:translateX(-14px)}23%,31%{opacity:1;transform:translateX(0)}33%,100%{opacity:0;transform:translateX(0)}}
+    @keyframes o2{0%,52.3%{opacity:0;transform:translateX(-14px)}56.3%,64.3%{opacity:1;transform:translateX(0)}66.3%,100%{opacity:0;transform:translateX(0)}}
+    @keyframes o3{0%,85.6%{opacity:0;transform:translateX(-14px)}89.6%,97.6%{opacity:1;transform:translateX(0)}99.6%,100%{opacity:0;transform:translateX(0)}}
+    @keyframes ping{0%,17%{opacity:0;transform:scale(1)}19%{opacity:.7;transform:scale(1)}27%{opacity:0;transform:scale(1.4)}50.3%{opacity:0;transform:scale(1)}52.3%{opacity:.7;transform:scale(1)}60.3%{opacity:0;transform:scale(1.4)}83.6%{opacity:0;transform:scale(1)}85.6%{opacity:.7;transform:scale(1)}93.6%,100%{opacity:0;transform:scale(1.4)}}
+    @media (prefers-reduced-motion:reduce){*{animation-play-state:paused!important;animation-delay:var(--still)!important}}
+  </style>
+
+  <rect class="card" x="0.5" y="0.5" width="999" height="289" rx="18"/>
+
+  <text class="serif" x="48" y="126" font-size="92">Qadi</text>
+  <text x="50" y="164" font-size="19" class="m">قاضي <tspan dx="4">· Arabic for “judge”</tspan></text>
+  <text x="50" y="204" font-size="22">Effect-native authorization for TypeScript.</text>
+
+  <g class="mono" font-size="12">
+    <rect class="chip" x="48" y="228" width="114" height="28" rx="14"/><text x="105" y="246" text-anchor="middle" class="a">one evaluator</text>
+    <rect class="chip" x="170" y="228" width="99" height="28" rx="14"/><text x="219.5" y="246" text-anchor="middle" class="a">fail-closed</text>
+    <rect class="chip" x="277" y="228" width="99" height="28" rx="14"/><text x="326.5" y="246" text-anchor="middle" class="a">field-level</text>
+    <rect class="chip" x="384" y="228" width="106" height="28" rx="14"/><text x="437" y="246" text-anchor="middle" class="a">typed errors</text>
+    <rect class="chip" x="498" y="228" width="63" height="28" rx="14"/><text x="529.5" y="246" text-anchor="middle" class="a">traced</text>
+  </g>
+
+  <!-- the judging scene -->
+  <path class="flow" d="M560 140 H752"/>
+  <path class="flow" d="M848 140 H864"/>
+
+  <g class="mono" font-size="11.5">
+    <g class="pill r1"><rect x="550" y="126" width="140" height="28" rx="14"/><text x="620" y="144" text-anchor="middle">alice · doc:read</text></g>
+    <g class="pill r2"><rect x="550" y="126" width="140" height="28" rx="14"/><text x="620" y="144" text-anchor="middle">bob · doc:delete</text></g>
+    <g class="pill r3"><rect x="550" y="126" width="140" height="28" rx="14"/><text x="620" y="144" text-anchor="middle">dana · invoice:pay</text></g>
+  </g>
+
+  <circle class="ping fb" cx="800" cy="140" r="46"/>
+  <circle class="box" cx="800" cy="140" r="46" stroke-width="1.5"/>
+  <g fill="none" stroke="var(--acc)" stroke-width="2" stroke-linecap="round">
+    <path d="M800 112 V166 M786 166 H814 M774 122 H826"/>
+    <path d="M774 122 L764 142 M774 122 L784 142 M826 122 L816 142 M826 122 L836 142"/>
+    <path d="M762 142 Q774 154 786 142 M814 142 Q826 154 838 142"/>
+  </g>
+  <text class="mono m" x="800" y="208" font-size="12.5" text-anchor="middle">evaluate</text>
+
+  <g class="mono" font-size="13">
+    <g class="ok o1"><rect x="870" y="126" width="100" height="28" rx="14"/><text x="920" y="145" text-anchor="middle">Allow</text>
+      <text x="920" y="176" font-size="11" text-anchor="middle" class="m" style="fill:var(--muted)">fields: id, title</text></g>
+    <g class="no o2"><rect x="870" y="126" width="100" height="28" rx="14"/><text x="920" y="145" text-anchor="middle">Deny</text>
+      <text x="920" y="176" font-size="11" text-anchor="middle" style="fill:var(--muted)">no doc:delete</text></g>
+    <g class="ok o3"><rect x="870" y="126" width="100" height="28" rx="14"/><text x="920" y="145" text-anchor="middle">Allow</text>
+      <text x="920" y="176" font-size="11" text-anchor="middle" style="fill:var(--muted)">obliged: audit-log</text></g>
+  </g>
+</svg>

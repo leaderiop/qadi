@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 430" width="1000" height="430" role="img" aria-labelledby="t d" style="--still:-5s">
+  <title id="t">Every decision is observable</title>
+  <desc id="d">Each evaluation emits one record to the DecisionSink. From there it fans out to the @qadi/audit pipeline (encode, stage, write, circuit breaker, retention), to the /__decisions server-sent event stream from @qadi/http, and to the @qadi/devtools timeline. Underneath, evaluate opens a qadi.evaluate span with a child span for each port it asks.</desc>
+  <style>
+    svg{--card:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--text:#1f2328;--muted:#59636e;--acc:#0b7f8c;--accs:#e3f5f7;--ok:#1a7f37;--oks:#e6f6ea}
+    @media (prefers-color-scheme:dark){svg{--card:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#9198a1;--acc:#39c5d1;--accs:#0e2a2e;--ok:#3fb950;--oks:#10261a}}
+    text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .mono,.mono text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .m,.m text{fill:var(--muted)} .a,.a text{fill:var(--acc)} .b{font-weight:600}
+    .card{fill:var(--card);stroke:var(--line)} .box{fill:var(--panel);stroke:var(--line)}
+    .flow{fill:none;stroke:var(--acc);stroke-width:1.6;stroke-dasharray:4 8;animation:flow 1.1s linear infinite}
+    @keyframes flow{to{stroke-dashoffset:-12}}
+    .rec{fill:var(--accs);stroke:var(--acc);animation-duration:4s;animation-iteration-count:infinite;animation-timing-function:ease-in-out}
+    .r0{animation-name:r0} .r1{animation-name:r1} .r2{animation-name:r2} .r3{animation-name:r3}
+    @keyframes r0{0%{opacity:0;transform:translate(0,0)}5%{opacity:1}30%{opacity:1;transform:translate(70px,0)}36%,100%{opacity:0;transform:translate(70px,0)}}
+    @keyframes r1{0%,36%{opacity:0;transform:translate(0,0)}40%{opacity:1}70%{opacity:1;transform:translate(66px,-104px)}76%,100%{opacity:0;transform:translate(66px,-104px)}}
+    @keyframes r2{0%,36%{opacity:0;transform:translate(0,0)}40%{opacity:1}70%{opacity:1;transform:translate(66px,0)}76%,100%{opacity:0;transform:translate(66px,0)}}
+    @keyframes r3{0%,36%{opacity:0;transform:translate(0,0)}40%{opacity:1}70%{opacity:1;transform:translate(66px,104px)}76%,100%{opacity:0;transform:translate(66px,104px)}}
+    .bar{transform-box:fill-box;transform-origin:left center;animation-duration:8s;animation-iteration-count:infinite;animation-timing-function:ease-out}
+    .s0{animation-name:s0} .s1{animation-name:s1} .s2{animation-name:s2}
+    @keyframes s0{0%{transform:scaleX(0);opacity:1}60%,92%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
+    @keyframes s1{0%,10%{transform:scaleX(0);opacity:1}30%,92%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
+    @keyframes s2{0%,30%{transform:scaleX(0);opacity:1}50%,92%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
+    @media (prefers-reduced-motion:reduce){*{animation-play-state:paused!important;animation-delay:var(--still)!important}}
+  </style>
+
+  <rect class="card" x="0.5" y="0.5" width="999" height="429" rx="18"/>
+
+  <rect class="box" x="24" y="132" width="170" height="70" rx="12"/>
+  <text class="mono b" x="109" y="164" font-size="16" text-anchor="middle">evaluate</text>
+  <text x="109" y="184" font-size="11.5" text-anchor="middle" class="m">one decision</text>
+  <path class="flow" d="M194 167 H264"/>
+  <rect class="rec r0" x="196" y="160" width="16" height="14" rx="3"/>
+
+  <rect class="box" x="264" y="132" width="196" height="70" rx="12" stroke-width="1.5"/>
+  <text class="mono b" x="362" y="164" font-size="15" text-anchor="middle">DecisionSink</text>
+  <text x="362" y="184" font-size="11.5" text-anchor="middle" class="m">one record per decision</text>
+
+  <path class="flow" d="M460 155 C490 155 490 63 530 63"/>
+  <path class="flow" d="M460 167 H530"/>
+  <path class="flow" d="M460 179 C490 179 490 271 530 271"/>
+  <rect class="rec r1" x="462" y="160" width="16" height="14" rx="3"/>
+  <rect class="rec r2" x="462" y="160" width="16" height="14" rx="3"/>
+  <rect class="rec r3" x="462" y="160" width="16" height="14" rx="3"/>
+
+  <g font-size="12">
+    <rect class="box" x="530" y="28" width="446" height="70" rx="12"/>
+    <text x="548" y="52" class="mono b" font-size="13.5">@qadi/audit</text>
+    <text x="548" y="72" class="mono a" font-size="11.5">encode → stage → write → circuit breaker</text>
+    <text x="548" y="88" class="m" font-size="11.5">retention · archival · e-signature capture · nothing dropped silently</text>
+
+    <rect class="box" x="530" y="132" width="446" height="70" rx="12"/>
+    <text x="548" y="156" class="mono b" font-size="13.5">/__decisions</text>
+    <text x="548" y="176" class="m" font-size="11.5">server-sent events with a backlog, from @qadi/http</text>
+    <text x="548" y="192" class="m" font-size="11.5">the same wire bytes an audit row stores</text>
+
+    <rect class="box" x="530" y="236" width="446" height="70" rx="12"/>
+    <text x="548" y="260" class="mono b" font-size="13.5">@qadi/devtools</text>
+    <text x="548" y="280" class="m" font-size="11.5">a timeline that absorbs duplicates and reordering, plus a React dock:</text>
+    <text x="548" y="296" class="m" font-size="11.5">decisions, questions, ports, a policy simulator</text>
+  </g>
+
+  <!-- spans -->
+  <path d="M24 334 H976" stroke="var(--line)" stroke-dasharray="3 5"/>
+  <text x="24" y="360" font-size="12.5" class="m b">and in your tracer</text>
+  <g class="mono" font-size="11.5">
+    <rect class="bar s0" x="200" y="350" width="560" height="18" rx="4" fill="var(--accs)" stroke="var(--acc)"/>
+    <text x="210" y="363" class="a">qadi.evaluate</text>
+    <rect class="bar s1" x="300" y="374" width="190" height="16" rx="4" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="308" y="386">qadi.attribute</text>
+    <rect class="bar s2" x="500" y="374" width="220" height="16" rx="4" fill="var(--panel)" stroke="var(--line)"/>
+    <text x="508" y="386">qadi.hasRelationship</text>
+  </g>
+  <text x="780" y="364" font-size="11.5" class="m">Effect's own spans: what was</text>
+  <text x="780" y="380" font-size="11.5" class="m">asked, of which port, and why</text>
+  <text x="500" y="416" font-size="12.5" text-anchor="middle" class="m">No bespoke logging port. Deterministic under TestClock, so a trace is something a test can assert.</text>
+</svg>

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 380" width="1000" height="380" role="img" aria-labelledby="t d" style="--still:-6s">
+  <title id="t">Roles flatten through inheritance</title>
+  <desc id="d">admin inherits editor and auditor; editor inherits viewer. fromRoles walks the graph once and the subject holds user:manage, doc:write, audit:read and doc:read, each with the path that granted it.</desc>
+  <style>
+    svg{--card:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--text:#1f2328;--muted:#59636e;--acc:#0b7f8c;--accs:#e3f5f7;--ok:#1a7f37;--oks:#e6f6ea}
+    @media (prefers-color-scheme:dark){svg{--card:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#9198a1;--acc:#39c5d1;--accs:#0e2a2e;--ok:#3fb950;--oks:#10261a}}
+    text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .mono,.mono text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .m,.m text{fill:var(--muted)} .a,.a text{fill:var(--acc)} .b{font-weight:600}
+    .card{fill:var(--card);stroke:var(--line)} .box{fill:var(--panel);stroke:var(--line)}
+    .edge{fill:none;stroke:var(--line);stroke-width:1.5}
+    .hl{fill:var(--accs);stroke:var(--acc);stroke-width:2}
+    .he{fill:none;stroke:var(--acc);stroke-width:2.2}
+    .k{animation-duration:10s;animation-iteration-count:infinite;animation-timing-function:linear}
+    .n1{animation-name:n1} .n2{animation-name:n2} .n3{animation-name:n3} .n4{animation-name:n4}
+    .e2{animation-name:e2} .e3{animation-name:e3} .e4{animation-name:e4}
+    @keyframes n1{0%,4%{opacity:0}6%,90%{opacity:1}94%,100%{opacity:0}}
+    @keyframes e2{0%,12%{opacity:0}15%,90%{opacity:1}94%,100%{opacity:0}}
+    @keyframes n2{0%,16%{opacity:0}18%,90%{opacity:1}94%,100%{opacity:0}}
+    @keyframes e3{0%,24%{opacity:0}27%,90%{opacity:1}94%,100%{opacity:0}}
+    @keyframes n3{0%,28%{opacity:0}30%,90%{opacity:1}94%,100%{opacity:0}}
+    @keyframes e4{0%,36%{opacity:0}39%,90%{opacity:1}94%,100%{opacity:0}}
+    @keyframes n4{0%,40%{opacity:0}42%,90%{opacity:1}94%,100%{opacity:0}}
+    @media (prefers-reduced-motion:reduce){*{animation-play-state:paused!important;animation-delay:var(--still)!important}}
+  </style>
+
+  <rect class="card" x="0.5" y="0.5" width="999" height="379" rx="18"/>
+
+  <!-- edges: child → parent reads "inherits" -->
+  <path class="edge" d="M330 89 C330 120 170 120 170 151"/>
+  <path class="edge" d="M330 89 C330 120 490 120 490 151"/>
+  <path class="edge" d="M170 205 V251"/>
+  <path class="he k e2" d="M330 89 C330 120 170 120 170 151"/>
+  <path class="he k e3" d="M330 89 C330 120 490 120 490 151"/>
+  <path class="he k e4" d="M170 205 V251"/>
+  <g font-size="11" class="m" font-style="italic">
+    <text x="232" y="112" text-anchor="middle" style="fill:var(--muted)">inherits</text>
+    <text x="428" y="112" text-anchor="middle" style="fill:var(--muted)">inherits</text>
+    <text x="180" y="232" style="fill:var(--muted)">inherits</text>
+  </g>
+
+  <g class="mono">
+    <rect class="box" x="245" y="35" width="170" height="54" rx="10"/><rect class="hl k n1" x="245" y="35" width="170" height="54" rx="10"/>
+    <text class="b" x="330" y="58" font-size="14" text-anchor="middle">admin</text><text class="m" x="330" y="77" font-size="11.5" text-anchor="middle">user:manage</text>
+
+    <rect class="box" x="85" y="151" width="170" height="54" rx="10"/><rect class="hl k n2" x="85" y="151" width="170" height="54" rx="10"/>
+    <text class="b" x="170" y="174" font-size="14" text-anchor="middle">editor</text><text class="m" x="170" y="193" font-size="11.5" text-anchor="middle">doc:write</text>
+
+    <rect class="box" x="405" y="151" width="170" height="54" rx="10"/><rect class="hl k n3" x="405" y="151" width="170" height="54" rx="10"/>
+    <text class="b" x="490" y="174" font-size="14" text-anchor="middle">auditor</text><text class="m" x="490" y="193" font-size="11.5" text-anchor="middle">audit:read</text>
+
+    <rect class="box" x="85" y="251" width="170" height="54" rx="10"/><rect class="hl k n4" x="85" y="251" width="170" height="54" rx="10"/>
+    <text class="b" x="170" y="274" font-size="14" text-anchor="middle">viewer</text><text class="m" x="170" y="293" font-size="11.5" text-anchor="middle">doc:read</text>
+  </g>
+
+  <!-- the flattened set -->
+  <rect class="box" x="640" y="30" width="336" height="276" rx="12"/>
+  <text class="mono" x="660" y="58" font-size="11.5">fromRoles({ id: "u1", roles: [admin] })</text>
+  <text x="660" y="80" font-size="12" class="m">→ the subject's permission set</text>
+  <g class="mono" font-size="12.5">
+    <g class="k n1"><rect x="660" y="100" width="118" height="28" rx="14" fill="var(--oks)" stroke="var(--ok)"/><text x="719" y="119" text-anchor="middle" style="fill:var(--ok)">user:manage</text><text x="792" y="119" font-size="11" class="m">via admin</text></g>
+    <g class="k n2"><rect x="660" y="140" width="118" height="28" rx="14" fill="var(--oks)" stroke="var(--ok)"/><text x="719" y="159" text-anchor="middle" style="fill:var(--ok)">doc:write</text><text x="792" y="159" font-size="11" class="m">via admin → editor</text></g>
+    <g class="k n3"><rect x="660" y="180" width="118" height="28" rx="14" fill="var(--oks)" stroke="var(--ok)"/><text x="719" y="199" text-anchor="middle" style="fill:var(--ok)">audit:read</text><text x="792" y="199" font-size="11" class="m">via admin → auditor</text></g>
+    <g class="k n4"><rect x="660" y="220" width="118" height="28" rx="14" fill="var(--oks)" stroke="var(--ok)"/><text x="719" y="239" text-anchor="middle" style="fill:var(--ok)">doc:read</text><text x="792" y="239" font-size="11" class="m">via … → viewer</text></g>
+  </g>
+  <text x="660" y="286" font-size="11.5" class="m">permissionProvenance names the path</text>
+
+  <text x="500" y="340" font-size="12.5" text-anchor="middle" class="m">Roles written in code inherit by value, so they cannot form a cycle. Roles loaded as data go through</text>
+  <text x="500" y="360" font-size="12.5" text-anchor="middle" class="m">resolveRoleGraph, which refuses one with a typed CircularRoleInheritance instead of looping.</text>
+</svg>
