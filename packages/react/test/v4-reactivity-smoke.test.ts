@@ -281,7 +281,7 @@ describe("effect/reactivity API canary", () => {
       });
       return get(runtime.atom(Effect.succeed(1)).pipe(runtime.factory.withReactivity([key])));
     });
-    const invalidate: Atom.AtomResultFn<void, void> = runtime.fn((_: void) =>
+    const invalidate: Atom.AtomResultFn<void, void> = runtime.fn<void>()(() =>
       Reactivity.invalidate([key]),
     );
     const registry = makeRegistry();
@@ -318,7 +318,7 @@ describe("effect/reactivity API canary", () => {
       .atom(Effect.flatMap(Ticker, (t) => t.next))
       .pipe(runtime.factory.withReactivity([key]));
 
-    const invalidate: Atom.AtomResultFn<void, void> = runtime.fn((_: void) =>
+    const invalidate: Atom.AtomResultFn<void, void> = runtime.fn<void>()(() =>
       Reactivity.invalidate([key]),
     );
 

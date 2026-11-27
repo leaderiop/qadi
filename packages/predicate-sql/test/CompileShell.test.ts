@@ -157,7 +157,7 @@ describe("compileSql — the compile shell (BEH-QD-596)", () => {
   it.effect("one more than the default maxInValues refuses (the default is 1000, not looser)", () =>
     isolatedMetrics(
       Effect.gen(function* () {
-        const failure = yield* Effect.flip(compileSql(memberOf("x", new Array(1001).fill(1)), { dialect: "postgres" }));
+        const failure = yield* Effect.flip(compileSql(memberOf("x", Array.from({ length: 1001 }, () => 1)), { dialect: "postgres" }));
         assert.strictEqual(failure.refusal, "TooManyValues");
       }),
     ));
