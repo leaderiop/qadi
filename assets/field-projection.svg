@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 360" width="1000" height="360" role="img" aria-labelledby="t d" style="--still:-5s">
+  <title id="t">Field-level projection</title>
+  <desc id="d">A loaded document with id, title, body and internalNotes passes through enforceProjected under hasPermission(doc:read, fields id and title). Only id and title reach the caller; body and internalNotes are dropped.</desc>
+  <style>
+    svg{--card:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--text:#1f2328;--muted:#59636e;--acc:#0b7f8c;--accs:#e3f5f7;--ok:#1a7f37;--oks:#e6f6ea;--no:#cf222e;--nos:#fdecec}
+    @media (prefers-color-scheme:dark){svg{--card:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#9198a1;--acc:#39c5d1;--accs:#0e2a2e;--ok:#3fb950;--oks:#10261a;--no:#f85149;--nos:#2c1517}}
+    text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .mono,.mono text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .m,.m text{fill:var(--muted)} .a,.a text{fill:var(--acc)} .g,.g text{fill:var(--ok)} .r,.r text{fill:var(--no)} .b{font-weight:600}
+    .card{fill:var(--card);stroke:var(--line)} .box{fill:var(--panel);stroke:var(--line)}
+    .k{animation-duration:9s;animation-iteration-count:infinite;animation-timing-function:ease-in-out}
+    .keep1{animation-name:keep1} .keep2{animation-name:keep2} .drop1{animation-name:drop1} .drop2{animation-name:drop2} .gate{animation-name:gate}
+    @keyframes keep1{0%,8%{opacity:0;transform:translateX(0)}10%{opacity:1;transform:translateX(0)}30%,88%{opacity:1;transform:translateX(660px)}92%,100%{opacity:0;transform:translateX(660px)}}
+    @keyframes keep2{0%,14%{opacity:0;transform:translateX(0)}16%{opacity:1;transform:translateX(0)}36%,88%{opacity:1;transform:translateX(660px)}92%,100%{opacity:0;transform:translateX(660px)}}
+    @keyframes drop1{0%,20%{opacity:0;transform:translate(0,0)}22%{opacity:1;transform:translate(0,0)}36%{opacity:1;transform:translate(330px,0)}46%,100%{opacity:0;transform:translate(330px,46px)}}
+    @keyframes drop2{0%,26%{opacity:0;transform:translate(0,0)}28%{opacity:1;transform:translate(0,0)}42%{opacity:1;transform:translate(260px,0)}52%,100%{opacity:0;transform:translate(260px,46px)}}
+    @keyframes gate{0%,30%{opacity:0}34%,50%{opacity:1}56%,100%{opacity:0}}
+    @media (prefers-reduced-motion:reduce){*{animation-play-state:paused!important;animation-delay:var(--still)!important}}
+  </style>
+
+  <rect class="card" x="0.5" y="0.5" width="999" height="359" rx="18"/>
+
+  <!-- policy -->
+  <rect class="box" x="340" y="22" width="320" height="62" rx="10"/>
+  <g class="mono" font-size="12.5">
+    <text x="358" y="47"><tspan class="a">hasPermission</tspan>(doc:read,</text>
+    <text x="374" y="68">{ fields: [<tspan class="g">"id"</tspan>, <tspan class="g">"title"</tspan>] })</text>
+  </g>
+  <path d="M500 84 V100" stroke="var(--acc)" stroke-width="1.5"/>
+
+  <!-- gate -->
+  <rect x="490" y="100" width="20" height="148" rx="10" fill="var(--accs)" stroke="var(--acc)"/>
+  <rect class="k gate" x="490" y="100" width="20" height="148" rx="10" fill="var(--nos)" stroke="var(--no)"/>
+  <text x="500" y="270" class="mono a" font-size="12.5" text-anchor="middle">enforceProjected</text>
+
+  <!-- source -->
+  <text x="40" y="92" font-size="12.5" class="m">the loaded resource</text>
+  <rect class="box" x="40" y="104" width="280" height="140" rx="10"/>
+  <g class="mono m" font-size="13" opacity=".55">
+    <text x="60" y="134">id: "doc-1"</text>
+    <text x="60" y="164">title: "Q3 plan"</text>
+    <text x="60" y="194">body: "…"</text>
+    <text x="60" y="224">internalNotes: "…"</text>
+  </g>
+
+  <!-- destination -->
+  <text x="700" y="92" font-size="12.5" class="m">what the caller receives</text>
+  <rect class="box" x="700" y="104" width="260" height="140" rx="10"/>
+
+  <!-- moving fields -->
+  <g class="mono" font-size="13">
+    <text class="k keep1 g" x="60" y="134">id: "doc-1"</text>
+    <text class="k keep2 g" x="60" y="164">title: "Q3 plan"</text>
+    <text class="k drop1 r" x="60" y="194" text-decoration="line-through">body: "…"</text>
+    <text class="k drop2 r" x="60" y="224" text-decoration="line-through">internalNotes: "…"</text>
+  </g>
+
+  <text x="500" y="314" font-size="14" text-anchor="middle">One pass decides <tspan font-style="italic">whether</tspan> the caller may read the record and <tspan font-style="italic">which</tspan> of its fields come back.</text>
+  <text x="500" y="338" font-size="12.5" text-anchor="middle" class="m">allOf intersects its branches' fields · anyOf takes the first allowing branch's (or their union) · no fields option means every field</text>
+</svg>

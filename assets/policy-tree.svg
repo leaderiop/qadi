@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 470" width="1000" height="470" role="img" aria-labelledby="t d" style="--still:-8.4s">
+  <title id="t">A policy is a tree, evaluated with short-circuiting</title>
+  <desc id="d">The policy anyOf(hasRole admin, allOf(hasPermission doc:read, hasRelationship owner)). For alice, an editor who owns the document, hasRole fails, then the allOf branch asks the relationship port and allows. For root, an admin, hasRole allows at once and the allOf branch is skipped, so no port is called.</desc>
+  <style>
+    svg{--card:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--text:#1f2328;--muted:#59636e;--acc:#0b7f8c;--accs:#e3f5f7;--ok:#1a7f37;--oks:#e6f6ea;--no:#cf222e;--nos:#fdecec}
+    @media (prefers-color-scheme:dark){svg{--card:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#9198a1;--acc:#39c5d1;--accs:#0e2a2e;--ok:#3fb950;--oks:#10261a;--no:#f85149;--nos:#2c1517}}
+    text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .mono,.mono text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .m,.m text{fill:var(--muted)} .a,.a text{fill:var(--acc)} .g,.g text{fill:var(--ok)} .r,.r text{fill:var(--no)} .b{font-weight:600}
+    .card{fill:var(--card);stroke:var(--line)} .box{fill:var(--panel);stroke:var(--line)}
+    .edge{fill:none;stroke:var(--line);stroke-width:1.5}
+    .okR{fill:var(--oks);stroke:var(--ok);stroke-width:2} .noR{fill:var(--nos);stroke:var(--no);stroke-width:2}
+    .k{animation-duration:12s;animation-iteration-count:infinite;animation-timing-function:linear}
+    .roleNo{animation-name:roleNo} .roleOk{animation-name:roleOk} .permOk{animation-name:permOk}
+    .relAsk{animation-name:relAsk} .relOk{animation-name:relOk} .allOk{animation-name:allOk}
+    .anyOk{animation-name:anyOk} .skip{animation-name:skip} .skipL{animation-name:skipL}
+    .sA{animation-name:sA} .sB{animation-name:sB} .resA{animation-name:resA} .resB{animation-name:resB}
+    @keyframes roleNo{0%,5%{opacity:0}7%,47%{opacity:1}50%,100%{opacity:0}}
+    @keyframes roleOk{0%,54%{opacity:0}56%,96%{opacity:1}99%,100%{opacity:0}}
+    @keyframes permOk{0%,14%{opacity:0}16%,47%{opacity:1}50%,100%{opacity:0}}
+    @keyframes relAsk{0%,19%{opacity:0}21%,27%{opacity:1}29%,100%{opacity:0}}
+    @keyframes relOk{0%,27%{opacity:0}29%,47%{opacity:1}50%,100%{opacity:0}}
+    @keyframes allOk{0%,31%{opacity:0}33%,47%{opacity:1}50%,100%{opacity:0}}
+    @keyframes anyOk{0%,35%{opacity:0}37%,47%{opacity:1}50%,57%{opacity:0}59%,96%{opacity:1}99%,100%{opacity:0}}
+    @keyframes skip{0%,57%{opacity:1}59%,96%{opacity:.25}99%,100%{opacity:1}}
+    @keyframes skipL{0%,58%{opacity:0}60%,96%{opacity:1}99%,100%{opacity:0}}
+    @keyframes sA{0%{opacity:0}2%,47%{opacity:1}50%,100%{opacity:0}}
+    @keyframes sB{0%,51%{opacity:0}53%,96%{opacity:1}99%,100%{opacity:0}}
+    @keyframes resA{0%,37%{opacity:0}39%,47%{opacity:1}50%,100%{opacity:0}}
+    @keyframes resB{0%,59%{opacity:0}61%,96%{opacity:1}99%,100%{opacity:0}}
+    .pk{fill:var(--acc);animation:pk 12s ease-in-out infinite}
+    @keyframes pk{0%,20%{opacity:0;transform:translateY(0)}21%{opacity:1}24%{opacity:1;transform:translateY(24px)}27%{opacity:1;transform:translateY(0)}28%,100%{opacity:0;transform:translateY(0)}}
+    @media (prefers-reduced-motion:reduce){*{animation-play-state:paused!important;animation-delay:var(--still)!important}}
+  </style>
+
+  <rect class="card" x="0.5" y="0.5" width="999" height="469" rx="18"/>
+
+  <text x="24" y="38" font-size="12.5" class="m">subject</text>
+  <g class="mono" font-size="13">
+    <text x="82" y="38" class="k sA">alice — role editor, owns doc-1</text>
+    <text x="82" y="38" class="k sB">root — role admin</text>
+  </g>
+  <g class="mono" font-size="12.5" text-anchor="end">
+    <text x="976" y="38" class="k resA g">Allow · 3 leaves asked · 1 port call</text>
+    <text x="976" y="38" class="k resB g">Allow · 1 leaf asked · 0 port calls</text>
+  </g>
+
+  <!-- edges -->
+  <path class="edge" d="M500 113 C500 150 270 150 270 187"/>
+  <path class="edge" d="M500 113 C500 150 730 150 730 187"/>
+
+  <!-- anyOf -->
+  <g class="mono" font-size="14">
+    <rect class="box" x="390" y="67" width="220" height="46" rx="10"/>
+    <g class="k anyOk"><rect class="okR" x="390" y="67" width="220" height="46" rx="10"/><text x="590" y="95" text-anchor="end" class="g">✓</text></g>
+    <text x="500" y="95" text-anchor="middle" class="b">anyOf</text>
+
+    <!-- hasRole -->
+    <rect class="box" x="160" y="187" width="220" height="46" rx="10"/>
+    <g class="k roleNo"><rect class="noR" x="160" y="187" width="220" height="46" rx="10"/><text x="364" y="215" text-anchor="end" class="r">✗</text></g>
+    <g class="k roleOk"><rect class="okR" x="160" y="187" width="220" height="46" rx="10"/><text x="364" y="215" text-anchor="end" class="g">✓</text></g>
+    <text x="262" y="215" text-anchor="middle" font-size="13">hasRole("admin")</text>
+  </g>
+
+  <!-- the allOf subtree -->
+  <g class="k skip mono" font-size="13">
+    <path class="edge" d="M730 233 C730 270 600 270 600 307"/>
+    <path class="edge" d="M730 233 C730 270 860 270 860 307"/>
+
+    <rect class="box" x="620" y="187" width="220" height="46" rx="10"/>
+    <g class="k allOk"><rect class="okR" x="620" y="187" width="220" height="46" rx="10"/><text x="822" y="215" text-anchor="end" class="g">✓</text></g>
+    <text x="730" y="215" text-anchor="middle" class="b" font-size="14">allOf</text>
+
+    <rect class="box" x="490" y="307" width="220" height="46" rx="10"/>
+    <g class="k permOk"><rect class="okR" x="490" y="307" width="220" height="46" rx="10"/><text x="700" y="335" text-anchor="end" class="g">✓</text></g>
+    <text x="592" y="335" text-anchor="middle" font-size="12.5">hasPermission(doc:read)</text>
+
+    <rect class="box" x="750" y="307" width="220" height="46" rx="10"/>
+    <g class="k relOk"><rect class="okR" x="750" y="307" width="220" height="46" rx="10"/><text x="960" y="335" text-anchor="end" class="g">✓</text></g>
+    <text x="852" y="335" text-anchor="middle" font-size="12.5">hasRelationship("owner")</text>
+
+    <path d="M860 353 V378" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 4"/>
+    <circle class="pk" cx="860" cy="356" r="4"/>
+    <rect x="770" y="380" width="180" height="30" rx="8" fill="var(--card)" stroke="var(--line)" stroke-dasharray="4 3"/>
+    <rect class="k relAsk" x="770" y="380" width="180" height="30" rx="8" fill="var(--accs)" stroke="var(--acc)"/>
+    <text x="860" y="400" text-anchor="middle" font-size="11.5" class="a">RelationshipResolver</text>
+  </g>
+  <text class="k skipL" x="730" y="176" font-size="12.5" text-anchor="middle" font-style="italic" style="fill:var(--muted)">skipped — never asked</text>
+
+  <text x="500" y="452" font-size="13.5" text-anchor="middle" class="m">allOf stops at the first Deny · anyOf (default strategy “First”) stops at the first Allow — a skipped branch never calls its ports.</text>
+</svg>

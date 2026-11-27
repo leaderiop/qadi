@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 470" width="1000" height="470" role="img" aria-labelledby="t d" style="--still:-6s">
+  <title id="t">Five ports, every one fail-closed</title>
+  <desc id="d">The five ports — AttributeResolver, RelationshipResolver, DecisionHistory, SignatureHistory and CustomPredicate — each with a fail-closed default. Three cases cycle: a wired resolver answers and the policy allows; a resolver outage becomes a typed AttributeResolveError, never an allow and never a silent deny; an unwired port uses its default, which knows nothing, so the policy denies.</desc>
+  <style>
+    svg{--card:#ffffff;--panel:#f6f8fa;--line:#d0d7de;--text:#1f2328;--muted:#59636e;--acc:#0b7f8c;--accs:#e3f5f7;--ok:#1a7f37;--oks:#e6f6ea;--no:#cf222e;--nos:#fdecec;--warn:#9a6700;--warns:#fcf4d6}
+    @media (prefers-color-scheme:dark){svg{--card:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#9198a1;--acc:#39c5d1;--accs:#0e2a2e;--ok:#3fb950;--oks:#10261a;--no:#f85149;--nos:#2c1517;--warn:#d29922;--warns:#2a2011}}
+    text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .mono,.mono text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .m,.m text{fill:var(--muted)} .a,.a text{fill:var(--acc)} .g,.g text{fill:var(--ok)} .r,.r text{fill:var(--no)} .w{fill:var(--warn)} .b{font-weight:600}
+    .card{fill:var(--card);stroke:var(--line)} .box{fill:var(--panel);stroke:var(--line)}
+    .wire{fill:none;stroke:var(--line);stroke-width:1.5}
+    .flow{fill:none;stroke-width:1.8;stroke-dasharray:4 8;animation:flow 1.1s linear infinite}
+    @keyframes flow{to{stroke-dashoffset:-12}}
+    .k{animation-duration:12s;animation-iteration-count:infinite;animation-timing-function:linear}
+    .s1{animation-name:s1} .s2{animation-name:s2} .s3{animation-name:s3}
+    @keyframes s1{0%{opacity:0}2%,31%{opacity:1}33%,100%{opacity:0}}
+    @keyframes s2{0%,33%{opacity:0}35%,64%{opacity:1}66%,100%{opacity:0}}
+    @keyframes s3{0%,66%{opacity:0}68%,97%{opacity:1}100%{opacity:0}}
+    @media (prefers-reduced-motion:reduce){*{animation-play-state:paused!important;animation-delay:var(--still)!important}}
+  </style>
+
+  <rect class="card" x="0.5" y="0.5" width="999" height="469" rx="18"/>
+  <text x="24" y="26" font-size="12.5" class="m">five ports — each a Context.Service you provide as a Layer</text>
+
+  <!-- ports -->
+  <g>
+    <rect class="box" x="24" y="38" width="260" height="62" rx="10"/>
+    <rect class="k s1" x="24" y="38" width="260" height="62" rx="10" fill="var(--oks)" stroke="var(--ok)" stroke-width="2"/>
+    <rect class="k s2" x="24" y="38" width="260" height="62" rx="10" fill="var(--nos)" stroke="var(--no)" stroke-width="2"/>
+    <rect class="k s3" x="24" y="38" width="260" height="62" rx="10" fill="var(--card)" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text class="mono b" x="40" y="63" font-size="13.5">AttributeResolver</text>
+    <text class="mono m" x="40" y="85" font-size="11">default: AttributeResolverNone</text>
+    <text class="k s2 mono r" x="272" y="63" font-size="11.5" text-anchor="end">✕ timeout</text>
+    <text class="k s3 mono m" x="272" y="63" font-size="11.5" text-anchor="end">unwired</text>
+  </g>
+  <g class="mono">
+    <rect class="box" x="24" y="116" width="260" height="62" rx="10"/>
+    <text class="b" x="40" y="141" font-size="13.5">RelationshipResolver</text>
+    <text class="m" x="40" y="163" font-size="11">default: RelationshipResolverNever</text>
+    <rect class="box" x="24" y="194" width="260" height="62" rx="10"/>
+    <text class="b" x="40" y="219" font-size="13.5">DecisionHistory</text>
+    <text class="m" x="40" y="241" font-size="11">default: DecisionHistoryUnknown</text>
+    <rect class="box" x="24" y="272" width="260" height="62" rx="10"/>
+    <text class="b" x="40" y="297" font-size="13.5">SignatureHistory</text>
+    <text class="m" x="40" y="319" font-size="11">default: SignatureHistoryNone</text>
+    <rect class="box" x="24" y="350" width="260" height="62" rx="10"/>
+    <text class="b" x="40" y="375" font-size="13.5">CustomPredicate</text>
+    <text class="m" x="40" y="397" font-size="11">default: CustomPredicateNone</text>
+  </g>
+
+  <path class="wire" d="M284 147 C340 147 340 212 400 212"/>
+  <path class="wire" d="M284 225 C340 225 340 220 400 220"/>
+  <path class="wire" d="M284 303 C340 303 340 228 400 228"/>
+  <path class="wire" d="M284 381 C340 381 340 236 400 236"/>
+  <path class="wire" d="M284 69 C340 69 340 204 400 204"/>
+  <path class="flow k s1" stroke="var(--ok)" d="M284 69 C340 69 340 204 400 204"/>
+  <path class="k s2" fill="none" stroke="var(--no)" stroke-width="2" stroke-dasharray="2 5" d="M284 69 C340 69 340 204 400 204"/>
+
+  <!-- evaluate -->
+  <text class="mono m" x="485" y="166" font-size="11" text-anchor="middle">hasAttribute("department", …)</text>
+  <rect class="box" x="400" y="180" width="170" height="80" rx="14" stroke-width="1.5"/>
+  <text class="mono b" x="485" y="218" font-size="18" text-anchor="middle">evaluate</text>
+  <text x="485" y="240" font-size="11.5" text-anchor="middle" class="m">asks what the tree needs</text>
+  <path d="M570 220 H640" stroke="var(--line)" stroke-width="1.5"/>
+
+  <!-- outcome panel -->
+  <rect class="box" x="640" y="110" width="336" height="220" rx="12"/>
+  <g class="k s1">
+    <text x="660" y="140" font-size="12.5" class="a b">① wired</text>
+    <rect x="660" y="156" width="84" height="28" rx="14" fill="var(--oks)" stroke="var(--ok)"/>
+    <text class="mono g" x="702" y="175" font-size="13.5" text-anchor="middle">Allow</text>
+    <text x="660" y="216" font-size="13">Your Layer answered:</text>
+    <text class="mono" x="660" y="238" font-size="12.5">department = "finance"</text>
+  </g>
+  <g class="k s2">
+    <text x="660" y="140" font-size="12.5" class="r b">② outage</text>
+    <rect x="660" y="156" width="196" height="28" rx="14" fill="var(--nos)" stroke="var(--no)"/>
+    <text class="mono r" x="758" y="175" font-size="12.5" text-anchor="middle">AttributeResolveError</text>
+    <text x="660" y="216" font-size="13">A typed failure in the error channel —</text>
+    <text x="660" y="238" font-size="13">never an Allow, never a silent Deny.</text>
+    <text x="660" y="268" font-size="12" class="m">@qadi/http answers it with 502, not 403.</text>
+  </g>
+  <g class="k s3">
+    <text x="660" y="140" font-size="12.5" class="m b">③ not wired</text>
+    <rect x="660" y="156" width="76" height="28" rx="14" fill="var(--nos)" stroke="var(--no)"/>
+    <text class="mono r" x="698" y="175" font-size="13.5" text-anchor="middle">Deny</text>
+    <text x="660" y="216" font-size="13">The default answers “nothing known”,</text>
+    <text x="660" y="238" font-size="13">and nothing known grants nothing.</text>
+  </g>
+
+  <text class="mono" x="500" y="438" font-size="12.5" text-anchor="middle">Layer.merge(portsLayer({ AttributeResolver: directory }), EvaluationIdLive)</text>
+  <text x="500" y="458" font-size="12.5" text-anchor="middle" class="m">Name only the ports you wire; the rest keep their fail-closed defaults. Retrying, bounded and timing-out wrappers come derived.</text>
+</svg>
